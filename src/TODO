@@ -1,0 +1,25 @@
+
+
+
+
+* [!]  make 'buffer_shift_data' safer!
+
+*   confirm clearing the buffer if it has data in it
+* > buffer scroll
+* > buffer linewrap
+* > delete current line
+*   allocated memory size for buffers and strings should be able to be decrement
+*   file IO 
+*   titles and frames for buffers.
+*   highlight and modify highlighted text
+*   mouse movement
+*   resize memory to smaller size for 'string' and 'buffer' if needed.
+*   file explorer
+*   color syntax
+*   gui
+*   settings tab
+*   colors can be changed
+     (read colors from config to editor structure)
+
+*   change title when focused?
+
