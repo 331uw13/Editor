@@ -50,6 +50,9 @@ void _key_input_CTRL(struct editor_t* ed, struct buffer_t* buf, int key) {
             break;
 
 
+        case GLFW_KEY_W:
+            write_file(ed, buf->id);
+            break;
     }
 }
 
@@ -69,16 +72,13 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
 
     struct buffer_t* buf = &ed->buffers[ed->current_buffer];
 
-
-    struct string_t* tmp = buf->current;
+    clear_info_buffer(ed);
 
     if(mods == 0) {
         switch(key) {
 
             case GLFW_KEY_HOME:
-                buffer_clear_all(buf);
-                open_file(ed, ed->current_buffer, "testfile");
-                close_file(ed, ed->current_buffer);
+                read_file(ed, ed->current_buffer, "testfile", 8);
                 break;
 
             case GLFW_KEY_D:
@@ -142,7 +142,6 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
             _key_input_ALT(ed, buf, key);
         }
     }
-
 
 }
 

@@ -7,8 +7,10 @@
 
 #define FONT_TAB_WIDTH 4
 #define MAX_BUFFERS 8
-#define ERROR_BUFFER_MAX_SIZE 256
 #define LINE_WRAP_WORD_BUFFER_SIZE 512
+
+#define ERROR_BUFFER_MAX_SIZE 256
+#define INFO_BUFFER_MAX_SIZE 128
 
 #define EDITOR_X_PADDING 10
 #define EDITOR_Y_PADDING 10
@@ -51,9 +53,14 @@ struct editor_t {
     int window_height;
 
 
-    // NOTE: the error which is written to the buffer must be null terminated
+    // the error which is written to the buffer must be null terminated.
     char error_buf[ERROR_BUFFER_MAX_SIZE];
     size_t error_buf_size; 
+
+    // messages that are displayed for user. example:'x bytes written.'
+    char info_buf[INFO_BUFFER_MAX_SIZE];
+    size_t info_buf_size;
+
 
     double mouse_x;
     double mouse_y;
@@ -72,11 +79,16 @@ void set_font_scale(struct editor_t* ed, float scale);
 int  load_font_from_file(const char* fontfile, struct psf2_font* font);
 void unload_font(struct psf2_font* font);
 
-void font_draw_char(struct editor_t* ed, int col, int row, char c);
-void font_draw_str(struct editor_t* ed, char* str, size_t size, int col, int row);
+#define DRAW_CHAR_ON_GRID 1
+void font_draw_char(struct editor_t* ed, int col, int row, char c, int on_grid);
 
+// uses DRAW_CHAR_ON_GRID. (forces characters to correct row and column)
+void font_draw_str(struct editor_t* ed, char* str, size_t size, int col, int row);
 void font_draw_str_wrapped(struct editor_t* ed, char* str, 
         size_t size, int col, int row, int max_column);
+
+// doesnt force characters to row and column.
+void font_draw_str_ng(struct editor_t* ed, char* str, size_t size, int x, int y);
 
 // map X, Y, WIDTH, HEIGHT to usable coordinates.
 // if pointer is set to NULL, continues to operate and leaves the null pointer alone
@@ -99,10 +111,15 @@ void draw_framed_rect(struct editor_t* ed,
 void draw_line(struct editor_t* ed, float x0, float y0, float x1, float y1, 
         float thickness, int flag);
 
-void write_error(struct editor_t* ed, char* err, ...);
+// message types
+#define ERROR_MSG 0
+#define INFO_MSG 1
+void write_message(struct editor_t* ed, int type, char* err, ...);
 void clear_error_buffer(struct editor_t* ed);
-void draw_errors(struct editor_t* ed);
+void clear_info_buffer(struct editor_t* ed);
 
+void draw_error_buffer(struct editor_t* ed);
+void draw_info_buffer(struct editor_t* ed);
 
 int setup_buffers(struct editor_t* ed);
 

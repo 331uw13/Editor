@@ -44,7 +44,7 @@ void run_loop(struct editor_t* ed) {
         draw_rect(ed, 
                 dcursor_x,
                 dcursor_y,
-                ed->font.r_width,
+                ed->font.width,
                 ed->font.r_height, MAP_XYWH);
 
         // cursor right line
@@ -52,7 +52,7 @@ void run_loop(struct editor_t* ed) {
         draw_rect(ed,
                 dcursor_x + ed->font.width - 1,
                 dcursor_y,
-                3,
+                1.5,
                 ed->font.r_height, MAP_XYWH
                 );
 
@@ -60,17 +60,23 @@ void run_loop(struct editor_t* ed) {
         draw_rect(ed,
                 dcursor_x,
                 dcursor_y + ed->font.height-4,
-                ed->font.r_width,
+                ed->font.width,
                 6, MAP_XYWH
                 );
 
+
         if(buf->ready) {
 
-            int max_rows = ed->window_height / ed->font.height;
+            const int max_rows = ed->window_height / ed->font.height;
+            const int max_cols = ed->window_width / ed->font.width;
+
+            //
+            //  ----- draw buffer content
+            //
 
             for(size_t i = 0; i < buf->num_used_lines; i++) {
 
-                if(i > max_rows) {
+                if(i > max_rows-2) {
                     break;
                 }
 
@@ -88,15 +94,50 @@ void run_loop(struct editor_t* ed) {
             
                 int l = snprintf(line_num_str, 28, "%li", i);
                 font_draw_str(ed, line_num_str, 28, draw_offset-l-2, i);
-                font_draw_char(ed, draw_offset-2+1, i, '|');
+                font_draw_char(ed, draw_offset-2+1, i, '|', DRAW_CHAR_ON_GRID);
+            }
+
+            //
+            // ----- draw buffer filename.
+            //
+            
+            const int filename_y = ed->window_height - ed->font.height;
+
+            glColor3f(0.1, 0.06, 0.05);
+            draw_framed_rect(ed, 
+                    1,
+                    filename_y-2,
+
+                    ed->window_width-1,
+                    ed->font.r_height+4, 
+                    0.4, 0.2,0.1,
+                    0.5,
+                    MAP_XYWH
+                    );
+
+
+            if(buf->filename_size > 0) {
+                glColor3f(0.4, 0.25, 0.015);
+                font_draw_char(ed, 10, filename_y, '\"', 0);
+                font_draw_char(ed, 10 + ed->font.width * (1+buf->filename_size), filename_y, '\"', 0);
+
+                glColor3f(0.8, 0.5, 0.3);
+                font_draw_str_ng(ed, buf->filename, buf->filename_size,
+                        10+ed->font.width, filename_y);
+            }
+            else {
+                glColor3f(0.4, 0.35, 0.3);
+                font_draw_str_ng(ed, "- EMPTY -", 9,
+                        ed->font.width, filename_y);
             }
         }
         else {
-            write_error(ed, "The current buffer is not initialized properly?");
+            write_message(ed, ERROR_MSG, "The current buffer is not initialized properly?");
         }
 
 
-        draw_errors(ed);
+        draw_error_buffer(ed);
+        draw_info_buffer(ed);
 
 
         do_safety_check(ed);

@@ -4,6 +4,8 @@
 
 * [!]  make 'buffer_shift_data' safer!
 
+*   check if info buffer size is going out of screen. line wrap it and extend the box height
+*   dynamic array for buffers filename
 *   confirm clearing the buffer if it has data in it
 * > buffer scroll
 * > buffer linewrap

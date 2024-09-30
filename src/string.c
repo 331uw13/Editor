@@ -139,6 +139,7 @@ int string_append_char(struct string_t* str, char c) {
         if(string_memcheck(str, str->data_size+1)) {
             str->data[str->data_size] = c;
             str->data_size++;
+            ok = 1;
         }
     }
 

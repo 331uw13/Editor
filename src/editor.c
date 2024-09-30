@@ -151,12 +151,12 @@ void unload_font(struct psf2_font* font) {
 }
 
 
-void font_draw_char(struct editor_t* ed, int col, int row, char c) {
+void font_draw_char(struct editor_t* ed, int col, int row, char c, int on_grid) {
     if(!ed || c <= 0x1F || c >= 0x7F) { return; }
     if(!ed->font.data) { return; }
 
-    float x = column_to_location(ed, col);
-    float y = row_to_location(ed, row);
+    float x = (on_grid) ? column_to_location(ed, col) : (float)col;
+    float y = (on_grid) ? row_to_location(ed, row) : (float)row;
 
     glPointSize(ed->font.scale);
     glBegin(GL_POINTS);
@@ -200,10 +200,32 @@ void font_draw_str(struct editor_t* ed, char* str, size_t size, int col, int row
                 return;
         }
 
-        font_draw_char(ed, col, row, c);
+        font_draw_char(ed, col, row, c, DRAW_CHAR_ON_GRID);
         col++;
     }
 }
+
+void font_draw_str_ng(struct editor_t* ed, char* str, size_t size, int x, int y) {
+    if(!str || size == 0) { return; }
+
+    for(size_t i = 0; i < size; i++) {
+        char c = str[i];
+
+        switch(c) {
+            case '\t':
+                x += FONT_TAB_WIDTH * ed->font.width;
+                break;
+
+            case 0:
+                return;
+        }
+
+        font_draw_char(ed, x, y, c, 0);
+        x += ed->font.width;
+    }
+
+}
+
 
 void font_draw_str_wrapped(struct editor_t* ed, char* str, 
         size_t size, int col, int row, int max_column) {
@@ -230,7 +252,7 @@ void font_draw_str_wrapped(struct editor_t* ed, char* str,
                 if(b == 0) {
                     return;
                 }
-                font_draw_char(ed, col, row, b);
+                font_draw_char(ed, col, row, b, DRAW_CHAR_ON_GRID);
                 col++;
                 if(col > max_column) {
                     col = col_origin;
@@ -280,7 +302,8 @@ void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h) {
         *y = map(*y, 0.0, ed->window_height, 1.0, -1.0);
     }
     if(w) {
-        *w = (*w > 0) ? (*w / ed->window_width) : *w;
+        *w = map(*w, 0.0, ed->window_width, 0.0, 2.0);
+        //*w = (*w > 0) ? (*w / ed->window_width) : *w;
     }
     if(h) {
         *h = (*h > 0) ? (*h / ed->window_height) : *h;
@@ -349,24 +372,56 @@ void draw_line(struct editor_t* ed, float x0, float y0, float x1, float y1,
     glEnd();
 }
 
-void write_error(struct editor_t* ed, char* err, ...) {
+void write_message(struct editor_t* ed, int type, char* err, ...) {
     if(!err) { return; }
 
     va_list ptr;
     va_start(ptr, err);
 
-    size_t i = 0;
+    size_t max_size = 0;
 
-    if(ed->error_buf_size >= ERROR_BUFFER_MAX_SIZE) {
-        ed->error_buf_size = 0;
-        memset(ed->error_buf, 0, ERROR_BUFFER_MAX_SIZE);
+    char* buf_ptr = NULL;
+    size_t* size_ptr = NULL;
+
+    switch(type) {
+        
+        case ERROR_MSG:
+            max_size = ERROR_BUFFER_MAX_SIZE;
+            buf_ptr = ed->error_buf;
+            size_ptr = &ed->error_buf_size;
+            break;
+
+        case INFO_MSG:
+            max_size = INFO_BUFFER_MAX_SIZE;
+            buf_ptr = ed->info_buf;
+            size_ptr = &ed->info_buf_size;
+            break;
+
+        // ...
+
+        default:
+            fprintf(stderr, "invalid message type!\n");
+            return;
     }
 
+    // these two checks should never happen but just in case.
+    //
+    if(!buf_ptr) {
+        fprintf(stderr, "'write_message': failed to get pointer to buffer.\n");
+        return;
+    }
+    if(!size_ptr) {
+        fprintf(stderr, "'write_message': failed to get pointer to buffer size\n");
+        return;
+    }
 
-    // build the buffer here and then copy it to the real 'editor->error_buf' 
-    // with 0 byte at the end.
-    char buffer[ERROR_BUFFER_MAX_SIZE] = {0};
+    // build the buffer here and then copy it to the buffer(buf_ptr)
+    // with null character at the end.
+    char buffer[max_size];
     size_t buf_size = 0;
+    size_t i = 0;
+
+    memset(buffer, 0, max_size);
 
     while(1) {
         
@@ -384,24 +439,29 @@ void write_error(struct editor_t* ed, char* err, ...) {
                 case 'd':
                 case 'i':
                     buf_size += snprintf(buffer + buf_size,
-                            ERROR_BUFFER_MAX_SIZE, "%i", va_arg(ptr, int));
+                            max_size, "%i", va_arg(ptr, int));
+                    break;
+
+                case 'l':
+                    buf_size += snprintf(buffer + buf_size,
+                            max_size , "%li", va_arg(ptr, size_t));
                     break;
 
                 case 's':
                     buf_size += snprintf(buffer + buf_size,
-                            ERROR_BUFFER_MAX_SIZE, "%s", va_arg(ptr, char*));
+                            max_size, "%s", va_arg(ptr, char*));
                     break;
            
                 case 'X':
                 case 'x':
                     buf_size += snprintf(buffer + buf_size,
-                            ERROR_BUFFER_MAX_SIZE, "%x", va_arg(ptr, unsigned int));
+                            max_size, "%x", va_arg(ptr, unsigned int));
                     break;
 
             }
 
-            if(buf_size >= ERROR_BUFFER_MAX_SIZE) {
-                buf_size = ERROR_BUFFER_MAX_SIZE-1;
+            if(buf_size >= max_size) {
+                buf_size = max_size - 1;
                 break;
             }
 
@@ -415,38 +475,45 @@ void write_error(struct editor_t* ed, char* err, ...) {
   
         i++;
 
-        if(i >= ERROR_BUFFER_MAX_SIZE) {
+        if(i >= max_size) {
             break;
         }
     }
+
+    // snprintf should append the null character 
+    // but in case if no arguments are passed it never does
+    buffer[buf_size-1] = 0;
    
     va_end(ptr);
 
-    if((ed->error_buf_size + buf_size) >= ERROR_BUFFER_MAX_SIZE) {
-        clear_error_buffer(ed);
+    if((*size_ptr + buf_size) >= max_size) {
+        memset(buf_ptr, 0, max_size);
+        *size_ptr = 0;
     }
 
-    memmove(ed->error_buf + ed->error_buf_size, buffer, buf_size);
-    ed->error_buf_size += buf_size;
+    memmove(buf_ptr, buffer, buf_size);
+    *size_ptr += buf_size;
 
 }
 
 void clear_error_buffer(struct editor_t* ed) {
-    if(ed->error_buf_size >= ERROR_BUFFER_MAX_SIZE) {
-        ed->error_buf_size = ERROR_BUFFER_MAX_SIZE;
-    }
-    memset(ed->error_buf, 0, ed->error_buf_size);
+    memset(ed->error_buf, 0, ERROR_BUFFER_MAX_SIZE);
     ed->error_buf_size = 0;
 }
 
+void clear_info_buffer(struct editor_t* ed) {
+    memset(ed->info_buf, 0, INFO_BUFFER_MAX_SIZE);
+    ed->info_buf_size = 0;
+}
 
-void draw_errors(struct editor_t* ed) {
+
+void draw_error_buffer(struct editor_t* ed) {
     if(ed->error_buf_size > 0) {
         
         const int bytes_shown = 64;
 
         float width = ed->font.r_width * bytes_shown;
-        float height = ed->font.r_height * 8;
+        float height = ed->font.r_height * 8; // TODO: not always 8 if max size is changed.
 
         float x = ed->window_width / ed->font.width - (bytes_shown+2);
         float y = 1;
@@ -474,6 +541,34 @@ void draw_errors(struct editor_t* ed) {
         font_draw_str_wrapped(ed, ed->error_buf, ed->error_buf_size, 
                 x, y+1, x+60);
         
+    }
+}
+
+void draw_info_buffer(struct editor_t* ed) {
+    if(ed->info_buf_size > 0) {
+        
+        float x = 1;
+        float y = ed->window_height - 2*ed->font.height-3;
+
+        glColor3f(0.05, 0.05, 0.05);
+
+        draw_framed_rect(ed, x, y, ed->window_width-1, ed->font.r_height,
+                0.1, 0.3, 0.3, 
+                0.3, MAP_XYWH);
+
+
+        
+        glColor3f(0.2, 0.4, 0.4);
+        font_draw_char(ed, x+10, y, '>', 0);
+
+        glColor3f(0.5, 0.75, 0.75);
+        font_draw_char(ed, x + ed->font.width+10, y, '>', 0);
+
+        glColor3f(0.4, 0.5, 0.5);
+        font_draw_str_ng(ed, ed->info_buf, ed->info_buf_size, 
+                x + ed->font.width*2 + 20, y);
+
+
     }
 }
 

@@ -7,6 +7,7 @@
 
 #define BUFFER_MEMORY_BLOCK_SIZE 64 // TODO: rename these in string.h and buffer.h
 #define BUFFER_MAX_SIZE 0xf4240
+#define BUFFER_MAX_FILENAME_SIZE 256
 
 #define BUFFER_SHIFT_DOWN  0
 #define BUFFER_SHIFT_UP    1
@@ -16,10 +17,6 @@
 
 
 struct buffer_t {
-    
-    int fd; // file descriptor.
-    size_t filesize;
-
     struct string_t** lines;
     size_t mem_size;  // allocated memory size.
     size_t num_lines; // 
@@ -30,6 +27,10 @@ struct buffer_t {
     size_t cursor_y;
 
     struct string_t* current;
+
+    char filename[BUFFER_MAX_FILENAME_SIZE];
+    size_t filename_size;
+    int file_opened;
 
     int id; // buffer can be accessed from 'editor->buffers[id]'
     int ready; // is the buffer initialized?

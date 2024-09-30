@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <unistd.h>
 #include "buffer.h"
 
 
@@ -28,8 +28,11 @@ int setup_buffer(struct buffer_t* buf, int id) {
     buf->num_used_lines = 0;
     buf->cursor_x = 0;
     buf->cursor_y = 0;
-    buf->fd = -1;
+    buf->file_opened = 0;
+    buf->filename_size = 0;
     buf->current = NULL;
+
+    memset(buf->filename, 0, BUFFER_MAX_FILENAME_SIZE);
 
     buf->lines = malloc(mem_size);
     if(!buf->lines) {
@@ -72,6 +75,7 @@ void cleanup_buffer(struct buffer_t* buf) {
             buf->lines = NULL;
             printf("freed buffer\n");
         }
+
         buf->ready = 0;
         buf->cursor_x = 0;
         buf->cursor_y = 0;
