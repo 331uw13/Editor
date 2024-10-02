@@ -15,7 +15,7 @@
 
 
 size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_t filename_size) {
-    size_t bytes_read = 0;
+    size_t total_bytes_read = 0;
 
     if(ed) {
 
@@ -30,11 +30,14 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
         }
 
 
+        //
         // this is here until filename array is made dynamic.
+        //
         if(filename_size >= BUFFER_MAX_FILENAME_SIZE) {
-            write_message(ed, ERROR_MSG, "filename size is too big.\0");
+            write_message(ed, ERROR_MSG, "Filename size is too big.\0");
             goto error;
         }
+
 
         if(buf_id > MAX_BUFFERS) {
             fprintf(stderr, "'read_file': invalid buffer id.\n");
@@ -83,6 +86,11 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
             goto error_and_close;
         }
 
+        if(sb.st_size <= 0) {
+            write_message(ed, ERROR_MSG, "File size seems to be zero, nothing to do.\0");
+            goto error_and_close;
+        }
+
         struct timespec ts;
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts);
         size_t start_ns = ts.tv_nsec;
@@ -90,57 +98,75 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
         char* ptr = NULL;
         ptr = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 
-
-
-        struct string_t* str = buf->lines[0];
-
-        if(!string_ready(str)) {
+        if(!ptr) {
+            fprintf(stderr, "failed to create new mapping.\n");
+            perror("mmap");
             goto error_and_close;
         }
 
-        size_t y = 0;
-        size_t bytes = 0;
-        size_t offset = 0;
 
-        buffer_memcheck(buf, BUFFER_MEMORY_BLOCK_SIZE);
+
+        buffer_clear_all(buf);
+
+        if(!buffer_ready(buf)) {
+            write_message(ed, ERROR_MSG, "buffer %i after clear is not ready.\0", buf->id);
+            goto error_and_close;
+        }
+
+
+        size_t offset = 0;
+        size_t bytes = 0;
+        size_t y = 0; // current string.
+
+        struct string_t* str = buf->lines[0];
+
+
+        // loop through all characters.
+        // count bytes until newline character is found, 
+        // then copy from ptr + offset to current string.
 
         for(size_t i = 0; i < sb.st_size; i++) {
+            if(!str) {
+                break;
+            }
             char c = ptr[i];
+            int eof = (i+1 == sb.st_size);
+            total_bytes_read++;
             bytes++;
 
-            if((c == '\n') || (i+1 == sb.st_size)) {
-                
-                if(string_memcheck(str, bytes)) {
-                    memmove(str->data,
-                            ptr + offset,
-                            bytes-1);
-
-                    bytes_read += bytes;
-                    
-                    // TODO: FIX THIS: if buffer has data and reading into it. it gets fucked.
-                    str->data_size += bytes-1; 
+            if(c == '\n' || eof) {
+                if(!string_memcheck(str, bytes - 1)) {
+                    fprintf(stderr, "warning: failed to copy data to string.\n");
+                    continue;
                 }
                 
+                memmove(str->data, ptr + offset, bytes - 1);
+                str->data_size = bytes - 1;
+
+                if(eof) {
+                    break;
+                }
+
+                if(!buffer_inc_size(buf, 1)) {
+                    fprintf(stderr, "'open_file': cant resize buffer?\n");
+                    goto error_and_close;
+                }
+
                 bytes = 0;
                 offset = i+1;
-
-                if(buffer_inc_size(buf, 1)) {
-                    y++;
-                    if(y >= buf->num_lines) {
-                        fprintf(stderr, "'read_file': 'y' is out of bounds\n");
-                        goto error_and_close;
-                    }
-
-                    str = buf->lines[y];
+                y++;
+                
+                if(y >= buf->num_alloc_lines) {
+                    fprintf(stderr, "'open_file': y is going out of bounds.\n");
+                    goto error_and_close;
                 }
-
-                continue;
+                
+                str = buf->lines[y];
             }
         }
 
-        write_message(ed, INFO_MSG, "bytes read: %li\0", bytes_read);
-        printf("bytes read: %li\n", bytes_read);
 
+        write_message(ed, INFO_MSG, "bytes read: %l\0", total_bytes_read);
 
 error_and_close:
 
@@ -153,6 +179,7 @@ error_and_close:
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts);
         size_t time_read = ts.tv_nsec - start_ns;
 
+
         printf("\033[94m --> Read file in %lims. \033[90m(%li nanosecods).\033[0m\n", 
                 time_read/1000000, time_read);
         
@@ -160,7 +187,7 @@ error_and_close:
     }
 
 error:
-    return bytes_read;
+    return total_bytes_read;
 }
 
 size_t write_file(struct editor_t* ed, unsigned int buf_id) {
@@ -175,6 +202,7 @@ size_t write_file(struct editor_t* ed, unsigned int buf_id) {
         fprintf(stderr, "'write_file': failed to get pointer to buffer.\n");
         goto error;
     }
+
 
     if(buf->filename_size == 0) {
         // TODO: ask to create the file.
@@ -192,7 +220,7 @@ size_t write_file(struct editor_t* ed, unsigned int buf_id) {
         goto error;
     }
 
-    if(fd <= 0) {
+    if(fd < 0) {
         perror("open");
         goto error;
     }
@@ -214,7 +242,6 @@ size_t write_file(struct editor_t* ed, unsigned int buf_id) {
 
 
     }
-
 
     close(fd);
 

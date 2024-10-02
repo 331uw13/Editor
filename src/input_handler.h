@@ -6,5 +6,6 @@
 
 void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int mods);
 void char_input_handler(GLFWwindow* win, unsigned int codepoint);
+void scroll_input_handler(GLFWwindow* win, double xoff, double yoff);
 
 #endif

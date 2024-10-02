@@ -1,15 +1,17 @@
-
 #include <stdio.h> // NOTE: remove after use <--
 #include <GLFW/glfw3.h>
 
-
 #include "editor.h"
 #include "file_io.h"
+#include "utils.h"
 
 
-void _handle_enter_key(struct buffer_t* buf) {
+
+void _handle_enter_key(struct editor_t* ed, struct buffer_t* buf) {
     if(buffer_add_newline(buf, buf->cursor_x, buf->cursor_y)) {
-        //move_cursor_to(buf, 0, buf->cursor_y+1);
+        if(buf->cursor_y > (buf->scroll + ed->max_row)) {
+            buffer_scroll(buf, -1);
+        }
     }
 }
 
@@ -29,7 +31,7 @@ void _handle_backspace_key(struct buffer_t* buf) {
 }
 
 
-void _key_input_CTRL(struct editor_t* ed, struct buffer_t* buf, int key) {
+void _key_mod_input_CTRL(struct editor_t* ed, struct buffer_t* buf, int key) {
 
     switch(key) {
             // goto end of the line.
@@ -49,18 +51,34 @@ void _key_input_CTRL(struct editor_t* ed, struct buffer_t* buf, int key) {
             move_cursor_to(buf, 0, buf->cursor_y);
             break;
 
-
         case GLFW_KEY_W:
             write_file(ed, buf->id);
             break;
+
+        case GLFW_KEY_P:
+            // TODO: enter command input mode.
+            break;
+
+
+            // FOR TESTING.
+        case GLFW_KEY_T:
+            buffer_clear_all(buf);
+            break;
+
+
+        default:break;
     }
 }
 
-void _key_input_ALT(struct editor_t* ed, struct buffer_t* buf, int key) {
+
+void _key_mod_input_ALT(struct editor_t* ed, struct buffer_t* buf, int key) {
     switch(key) {
+        
         case GLFW_KEY_C:
             clear_error_buffer(ed);
             break;
+        
+        default:break;
     }
 }
 
@@ -71,12 +89,12 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
     if(action == GLFW_RELEASE) { return; }
 
     struct buffer_t* buf = &ed->buffers[ed->current_buffer];
-
     clear_info_buffer(ed);
 
     if(mods == 0) {
         switch(key) {
 
+            // FOR TESTING.
             case GLFW_KEY_HOME:
                 read_file(ed, ed->current_buffer, "testfile", 8);
                 break;
@@ -102,7 +120,7 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
                 break;
 
             case GLFW_KEY_ENTER:
-                _handle_enter_key(buf);
+                _handle_enter_key(ed, buf);
                 break;
      
 
@@ -123,11 +141,17 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
             
             case GLFW_KEY_UP:
                 move_cursor(buf, 0, -1);
+                if(buf->cursor_y < buf->scroll) {
+                    buffer_scroll(buf, 1);
+                }
                 break;
             
 
             case GLFW_KEY_DOWN:
                 move_cursor(buf, 0, 1);
+                if(buf->cursor_y > (buf->scroll + ed->max_row)) {
+                    buffer_scroll(buf, -1);
+                }
                 break;
 
 
@@ -136,10 +160,10 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
     }
     else if(mods > 0) {
         if(mods == GLFW_MOD_CONTROL) {
-            _key_input_CTRL(ed, buf, key);
+            _key_mod_input_CTRL(ed, buf, key);
         }
         else if(mods == GLFW_MOD_ALT) {
-            _key_input_ALT(ed, buf, key);
+            _key_mod_input_ALT(ed, buf, key);
         }
     }
 
@@ -152,12 +176,25 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
 
     struct buffer_t* buf = &ed->buffers[ed->current_buffer];
 
+    if(!buffer_ready(buf)) {
+        return;
+    }
+
     string_add_char(buf->current, codepoint, buf->cursor_x);
     move_cursor(buf, 1, 0);
 
-
-    //printf("  '%c' | 0x%x\n", codepoint, codepoint);
-
 }
+
+void scroll_input_handler(GLFWwindow* win, double xoff, double yoff) {
+    struct editor_t* ed = glfwGetWindowUserPointer(win);
+    if(!ed) { return; }
+
+    struct buffer_t* buf = &ed->buffers[ed->current_buffer];
+    int iyoff = (int)yoff;
+    buffer_scroll(buf, iyoff);
+    move_cursor(buf, 0, -iyoff);
+}
+
+
 
 

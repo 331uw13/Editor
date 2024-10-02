@@ -5,7 +5,7 @@
 
 #include "editor.h"
 #include "string.h"
-
+#include "utils.h"
 
 
 
@@ -25,8 +25,15 @@ void run_loop(struct editor_t* ed) {
 
         struct buffer_t* buf = &ed->buffers[ed->current_buffer];
 
-        int draw_offset = snprintf(line_num_str, 28, "%li", buf->num_lines)+2;
-        int cursor_draw_offset = draw_offset;
+        if(!buf->lines) {
+            printf("no lines.\n");
+            break;
+        }
+
+        int x_drw_off = snprintf(line_num_str, 28, "%li", buf->num_used_lines)+2;
+        int y_drw_off = buf->scroll;
+
+        int cursor_draw_offset = x_drw_off;
 
         // find all tabs to the cursor x position so it can be offset correctly.
 
@@ -37,7 +44,7 @@ void run_loop(struct editor_t* ed) {
     // DRAW CURSOR
     
         const float dcursor_x = column_to_location(ed, buf->cursor_x + cursor_draw_offset);
-        const float dcursor_y = row_to_location(ed, buf->cursor_y);
+        const float dcursor_y = row_to_location(ed, buf->cursor_y - y_drw_off);
 
         // cursor background
         glColor3f(cursor_rgb_2[0], cursor_rgb_2[1], cursor_rgb_2[2]);
@@ -65,25 +72,30 @@ void run_loop(struct editor_t* ed) {
                 );
 
 
-        if(buf->ready) {
+        if(buffer_ready(buf)) {
 
-            const int max_rows = ed->window_height / ed->font.height;
-            const int max_cols = ed->window_width / ed->font.width;
+            // make sure scroll follows cursor.
+            if(!inbounds(buf->cursor_y, buf->scroll, buf->scroll + ed->max_row)) {
+                    //buffer_set_scroll(buf, buf->cursor_y);
+            }
 
+            
             //
             //  ----- draw buffer content
             //
+            for(size_t i = buf->scroll; i < buf->num_used_lines; i++) {
 
-            for(size_t i = 0; i < buf->num_used_lines; i++) {
-
-                if(i > max_rows-2) {
+                
+                if(i > (ed->max_row + buf->scroll)) {
                     break;
                 }
+                
 
                 glColor3f(0.9, 0.85, 0.7);
-                font_draw_str(ed, 
+                font_draw_str_wrapped(ed, 
                         buf->lines[i]->data, 
-                        buf->lines[i]->data_size, draw_offset, i);
+                        buf->lines[i]->data_size, x_drw_off, i - y_drw_off,
+                        ed->max_column - x_drw_off);
 
                 if(i == buf->cursor_y) {
                     glColor3f(0.3, 0.55, 0.3);
@@ -93,14 +105,15 @@ void run_loop(struct editor_t* ed) {
                 }
             
                 int l = snprintf(line_num_str, 28, "%li", i);
-                font_draw_str(ed, line_num_str, 28, draw_offset-l-2, i);
-                font_draw_char(ed, draw_offset-2+1, i, '|', DRAW_CHAR_ON_GRID);
+                font_draw_str(ed, line_num_str, 28, x_drw_off-l-2, i - y_drw_off);
+                font_draw_char(ed, x_drw_off-2+1, i - y_drw_off, '|', DRAW_CHAR_ON_GRID);
             }
 
             //
             // ----- draw buffer filename.
             //
-            
+
+
             const int filename_y = ed->window_height - ed->font.height;
 
             glColor3f(0.1, 0.06, 0.05);
@@ -130,6 +143,7 @@ void run_loop(struct editor_t* ed) {
                 font_draw_str_ng(ed, "- EMPTY -", 9,
                         ed->font.width, filename_y);
             }
+
         }
         else {
             write_message(ed, ERROR_MSG, "The current buffer is not initialized properly?");
@@ -139,11 +153,10 @@ void run_loop(struct editor_t* ed) {
         draw_error_buffer(ed);
         draw_info_buffer(ed);
 
-
         do_safety_check(ed);
+
         glfwSwapBuffers(ed->win);
         glfwWaitEvents();
-
     }
 }
 

@@ -9,8 +9,7 @@
 struct string_t* create_string() {
     struct string_t* s = NULL;
 
-    size_t mem_size = sizeof *s;
-    s = malloc(mem_size);
+    s = malloc(sizeof *s);
     if(!s) {
         fprintf(stderr, "failed to allocate memory for string_t.\n");
         goto error;
@@ -35,7 +34,7 @@ error:
 
 
 void cleanup_string(struct string_t** str) {
-    if((*str)) {
+    if(*str) {
         if((*str)->data) {
             free((*str)->data);
             (*str)->data = NULL;

@@ -17,7 +17,13 @@ void _framebuffer_size_callback(GLFWwindow* win, int width, int height) {
     if(ed) {
         ed->window_width = width;
         ed->window_height = height;
-        printf("resized:%ix%i\n", ed->window_width, ed->window_height);
+
+        if(ed->font.data) {
+            ed->max_column = width / ed->font.width;
+            ed->max_row = (height / ed->font.height) - 2;
+        }
+
+        printf("resized window:%ix%i\n", ed->window_width, ed->window_height);
     }
 
 }
@@ -46,7 +52,7 @@ void do_safety_check(struct editor_t* ed) {
 
     // these things should not happen but just make sure.
 
-    if(buf->cursor_y > buf->num_lines) {
+    if(buf->cursor_y >= buf->num_used_lines) {
         buf->cursor_y = buf->num_used_lines;
     }
 
@@ -227,22 +233,80 @@ void font_draw_str_ng(struct editor_t* ed, char* str, size_t size, int x, int y)
 }
 
 
-void font_draw_str_wrapped(struct editor_t* ed, char* str, 
+int font_draw_str_wrapped(struct editor_t* ed, char* str, 
         size_t size, int col, int row, int max_column) {
-    if(!str || size == 0) { return; }
+    int num_wraps = 0;
+    
+    if(!str || size == 0) { 
+        goto done;
+    }
 
-    const int col_origin = col;
+    
+    int col_origin = col;
 
     size_t word_size = 0;
     char word_buf[LINE_WRAP_WORD_BUFFER_SIZE] = {0};
 
     for(size_t i = 0; i < size; i++) {
         char c = str[i];
+        int end = (i+1 == size);
 
+        word_buf[word_size] = c;
+        word_size++;
 
         if(word_size >= LINE_WRAP_WORD_BUFFER_SIZE) {
+            // TODO
+            word_size = 0;
+            continue;
+        }
 
-            word_size = LINE_WRAP_WORD_BUFFER_SIZE;
+
+
+        if(c == 0x20 || end) {
+
+            if(end && !strchr(word_buf, 0x20)) {
+                
+                for(size_t k = 0; k < word_size; k++) {
+                    font_draw_char(ed, col, row, word_buf[k], DRAW_CHAR_ON_GRID);
+                    col++;
+                    if(col > max_column) {
+                        col = col_origin;
+                        row++;
+                    }
+                }
+
+                continue;
+            }
+
+            if((col + word_size) > max_column) {
+                col = col_origin;
+                row++;
+            }
+
+            font_draw_str(ed, word_buf, word_size, col, row);
+            col += word_size;
+            word_size = 0;
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /*
+
+        if(word_size > max_column) {
+        //if(word_size >= LINE_WRAP_WORD_BUFFER_SIZE) {
+            //word_size = LINE_WRAP_WORD_BUFFER_SIZE;
 
             // no need to check for tabs or spaces because it would have been wrapped earlier,
             // this "word" doesnt have them so just draw it and go to next line when max column is reached.
@@ -250,20 +314,22 @@ void font_draw_str_wrapped(struct editor_t* ed, char* str,
             for(size_t j = 0; j < word_size; j++) {
                 char b = word_buf[j];
                 if(b == 0) {
-                    return;
+                    goto done;
                 }
                 font_draw_char(ed, col, row, b, DRAW_CHAR_ON_GRID);
                 col++;
-                if(col > max_column) {
-                    col = col_origin;
+                if(col >= max_column) {
                     row++;
+                    num_wraps++;
+                    col = col_origin;
                 }
             }
 
             //memset(word_buf, 0, word_size);
             word_size = 0;
-
+            continue;
         }
+
 
         if(c == '\t') {
             col += FONT_TAB_WIDTH;
@@ -271,7 +337,7 @@ void font_draw_str_wrapped(struct editor_t* ed, char* str,
         }
 
         if(c == 0) {
-            return;
+            goto done;
         }
 
         word_buf[word_size] = c;
@@ -282,6 +348,7 @@ void font_draw_str_wrapped(struct editor_t* ed, char* str,
 
             if((col + word_size) > max_column) {
                 row++;
+                num_wraps++;
                 col = col_origin;
             }
 
@@ -290,7 +357,11 @@ void font_draw_str_wrapped(struct editor_t* ed, char* str,
             word_size = 0;
 
         }
+        */
     }
+
+done:
+    return num_wraps;
 }
 
 
@@ -389,6 +460,9 @@ void write_message(struct editor_t* ed, int type, char* err, ...) {
             max_size = ERROR_BUFFER_MAX_SIZE;
             buf_ptr = ed->error_buf;
             size_ptr = &ed->error_buf_size;
+
+            clear_error_buffer(ed);
+
             break;
 
         case INFO_MSG:
@@ -479,11 +553,8 @@ void write_message(struct editor_t* ed, int type, char* err, ...) {
             break;
         }
     }
+  
 
-    // snprintf should append the null character 
-    // but in case if no arguments are passed it never does
-    buffer[buf_size-1] = 0;
-   
     va_end(ptr);
 
     if((*size_ptr + buf_size) >= max_size) {
@@ -491,7 +562,7 @@ void write_message(struct editor_t* ed, int type, char* err, ...) {
         *size_ptr = 0;
     }
 
-    memmove(buf_ptr, buffer, buf_size);
+    memmove(buf_ptr + *size_ptr, buffer, buf_size);
     *size_ptr += buf_size;
 
 }
@@ -540,7 +611,6 @@ void draw_error_buffer(struct editor_t* ed) {
         glColor3f(0.9, 0.85, 0.85);
         font_draw_str_wrapped(ed, ed->error_buf, ed->error_buf_size, 
                 x, y+1, x+60);
-        
     }
 }
 
@@ -556,7 +626,6 @@ void draw_info_buffer(struct editor_t* ed) {
                 0.1, 0.3, 0.3, 
                 0.3, MAP_XYWH);
 
-
         
         glColor3f(0.2, 0.4, 0.4);
         font_draw_char(ed, x+10, y, '>', 0);
@@ -567,8 +636,6 @@ void draw_info_buffer(struct editor_t* ed) {
         glColor3f(0.4, 0.5, 0.5);
         font_draw_str_ng(ed, ed->info_buf, ed->info_buf_size, 
                 x + ed->font.width*2 + 20, y);
-
-
     }
 }
 
@@ -620,6 +687,8 @@ struct editor_t* init_editor(const char* fontfile,
     ed->window_width = 0;
     ed->window_height = 0;
     ed->current_buffer = 0;
+    ed->max_row = 0;
+    ed->max_column = 0;
 
     memset(ed->error_buf, 0, ERROR_BUFFER_MAX_SIZE);
 
@@ -652,12 +721,18 @@ struct editor_t* init_editor(const char* fontfile,
     glfwMakeContextCurrent(ed->win);
 
     glfwSetWindowSizeLimits(ed->win, 800, 700, GLFW_DONT_CARE, GLFW_DONT_CARE);
-    glfwGetWindowSize(ed->win, &ed->window_width, &ed->window_height);
     glfwSetWindowUserPointer(ed->win, ed); // set user pointer for use in callbacks
-   
+                                           //
     glfwSetFramebufferSizeCallback(ed->win, _framebuffer_size_callback);
-    glfwSetKeyCallback(ed->win, key_input_handler);
-    glfwSetCharCallback(ed->win, char_input_handler);
+    glfwSetKeyCallback    (ed->win, key_input_handler);
+    glfwSetCharCallback   (ed->win, char_input_handler);
+    glfwSetScrollCallback (ed->win, scroll_input_handler);
+
+    glfwGetWindowSize(ed->win, &ed->window_width, &ed->window_height);
+
+
+    ed->max_column = (ed->window_width / ed->font.width);
+    ed->max_row = (ed->window_height / ed->font.height) - 2;
 
     ed->ready = 1;
 
@@ -679,14 +754,13 @@ void cleanup_editor(struct editor_t** e) {
             (*e)->win = NULL;
             printf("\033[32m destroyed window.\033[0m\n");
         }
-        
+     
         if((*e)->ready) {
             glfwTerminate();
             printf("\033[32m terminated glfw.\033[0m\n");
         }
         
         unload_font(&(*e)->font);
-        
 
         free(*e);
         *e = NULL;

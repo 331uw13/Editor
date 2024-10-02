@@ -10,7 +10,7 @@
 #define LINE_WRAP_WORD_BUFFER_SIZE 512
 
 #define ERROR_BUFFER_MAX_SIZE 256
-#define INFO_BUFFER_MAX_SIZE 128
+#define INFO_BUFFER_MAX_SIZE 64
 
 #define EDITOR_X_PADDING 10
 #define EDITOR_Y_PADDING 10
@@ -52,6 +52,9 @@ struct editor_t {
     int window_width;
     int window_height;
 
+    int max_column;
+    int max_row;
+
 
     // the error which is written to the buffer must be null terminated.
     char error_buf[ERROR_BUFFER_MAX_SIZE];
@@ -84,7 +87,9 @@ void font_draw_char(struct editor_t* ed, int col, int row, char c, int on_grid);
 
 // uses DRAW_CHAR_ON_GRID. (forces characters to correct row and column)
 void font_draw_str(struct editor_t* ed, char* str, size_t size, int col, int row);
-void font_draw_str_wrapped(struct editor_t* ed, char* str, 
+
+// returns number of times the line was wrapped.
+int font_draw_str_wrapped(struct editor_t* ed, char* str, 
         size_t size, int col, int row, int max_column);
 
 // doesnt force characters to row and column.
