@@ -1,3 +1,4 @@
-text editor written in C
+# Text/Code Editor
+using OpenGL and glfw3
 
-note: no way near done. i keep updating
+> No way near done. I keep updating! <---
