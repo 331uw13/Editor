@@ -46,8 +46,8 @@ int string_move_data(struct string_t* dst_str, struct string_t* src_str,
 int     string_copy_all(struct string_t* dst_str, struct string_t* src_str);
 int     string_cut_data(struct string_t* str, size_t offset, size_t size);
 int     string_set_data(struct string_t* str, char* data, size_t size);
-
 size_t  string_num_chars(struct string_t* str, size_t start, size_t end, char c);
+int     string_clear_data(struct string_t* str);
 
 
 #endif

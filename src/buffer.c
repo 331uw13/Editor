@@ -33,6 +33,7 @@ int setup_buffer(struct buffer_t* buf, int id) {
     buf->file_opened = 0;
     buf->filename_size = 0;
     buf->current = NULL;
+    buf->active = 0;
 
     memset(buf->filename, 0, BUFFER_MAX_FILENAME_SIZE);
 
@@ -58,6 +59,7 @@ int setup_buffer(struct buffer_t* buf, int id) {
 
     buf->current = buf->lines[0];
     buf->ready = 1;
+    buf->active = 1;
 
     ok = 1;
     printf("buffer %i ready. %p\n", buf->id, buf->lines);
@@ -82,6 +84,7 @@ void cleanup_buffer(struct buffer_t* buf) {
         buf->scroll = 0;
         buf->file_opened = 0;
         buf->ready = 0;
+        buf->active = 0;
         buf->cursor_x = 0;
         buf->cursor_y = 0;
         buf->cursor_prev_x = 0;
@@ -240,26 +243,17 @@ error:
     return res;
 }
 
+
 void move_cursor_to(struct buffer_t* buf, size_t col, size_t row) {
     if(!buffer_ready(buf)) { return; }
 
     if(buf->num_used_lines > row) {
-        size_t old_y = buf->cursor_y;
-
         buf->cursor_y = row;
         buf->current = buf->lines[row];
 
-        if(old_y != buf->cursor_y) {
-            col = buf->cursor_prev_x;
-        }
-
-
-        buf->cursor_x = (buf->current->data_size > col) 
+        buf->cursor_x = (col < buf->current->data_size) 
             ? col : buf->current->data_size;
 
-        if(buf->current->data_size > 2) {
-            buf->cursor_prev_x = buf->cursor_x;
-        }
     }
 }
 

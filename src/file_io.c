@@ -55,10 +55,6 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
             goto error;
         }
 
-        if(buf->file_opened > 0) {
-            write_message(ed, ERROR_MSG, "Some file is already opened for buffer '%i'.\0", buf_id);
-            goto error;
-        }
 
         if(access(filename, F_OK)) {
             write_message(ed, ERROR_MSG, "File doesnt exist '%s'.\0", filename);
@@ -67,6 +63,8 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
 
         memmove(buf->filename, filename, filename_size);
         buf->filename_size = filename_size;
+
+        buf->filename[buf->filename_size] = 0;
 
         int fd = open(filename, O_RDONLY);
         if(fd == EACCES) {

@@ -9,22 +9,25 @@
 *   message type FATAL_ERROR_MSG, halt the program if these happen.
 *   error testing.
 
+*   select text
+* > optimize buffer shift
+*   remember cursor X
+*   verify memchecks are working well.
+*   move left/right by word.
 *   readonly mode
 *   remove buffer 'mem_size' its not used.
-*   commands
 *   dynamic array for buffers filename
 *   confirm clearing the buffer if it has data in it
-* > buffer linewrap
-* > delete current line
+*   buffer linewrap
+*   delete current line
 *   allocated memory size for buffers and strings should be able to be decrement
 *   titles and frames for buffers.
 *   highlight and modify highlighted text
 *   mouse movement
-*   resize memory to smaller size for 'string' and 'buffer' if needed.
 *   file browser
 *   color syntax
-*   gui
-*   settings tab
+*   gui <-------- ( ???? )
+*   settings tab ( ?? )
 *   colors can be changed
      (read colors from config to editor structure)
 

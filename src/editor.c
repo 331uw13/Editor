@@ -4,11 +4,12 @@
 #include <stdarg.h>
 #include <string.h>
 #include <zlib.h>
+#include <GL/glew.h>
 
 #include "editor.h"
 #include "input_handler.h"
 #include "utils.h"
-
+#include "shader.h"
 
 void _framebuffer_size_callback(GLFWwindow* win, int width, int height) {
     glViewport(0, 0, width, height);
@@ -17,6 +18,7 @@ void _framebuffer_size_callback(GLFWwindow* win, int width, int height) {
     if(ed) {
         ed->window_width = width;
         ed->window_height = height;
+
 
         if(ed->font.data) {
             ed->max_column = width / ed->font.width;
@@ -190,178 +192,66 @@ void font_draw_char(struct editor_t* ed, int col, int row, char c, int on_grid) 
     glEnd();
 }
 
+void font_draw_data(struct editor_t* ed,
+        char* str, size_t size,
+        int x,
+        int y,
+        int on_grid) 
+{
+    if(!str || size == 0) {
+        return;
+    }
 
-void font_draw_str(struct editor_t* ed, char* str, size_t size, int col, int row) {
-    if(!str || size == 0) { return; }
+    const int x_inc = (on_grid) ? 1 : (ed->font.width);
+    const int tab_inc = FONT_TAB_WIDTH * x_inc;
+
 
     for(size_t i = 0; i < size; i++) {
         char c = str[i];
 
         switch(c) {
-            case '\t':
+            case 0x9:
+                x += tab_inc;
+                continue;
+            
+            case 0x0:return;
+            default:break;
+        }
+        if(c <= 0x1F || c >= 0x7F) {
+            continue;
+        }
+
+        font_draw_char(ed, x, y, c, on_grid);
+        x += x_inc;
+    }
+}
+
+void font_draw_data_wrapped(struct editor_t* ed, char* str, 
+        size_t size, int col, int row, int max_column) 
+{
+    // TODO make this better this sucks....
+
+    const int col_origin = col;
+
+    for(size_t i = 0; i < size; i++) {
+        char c = str[i];
+        switch(c) {
+            case 0x9:
                 col += FONT_TAB_WIDTH;
                 continue;
 
-            case 0:
-                return;
+            case 0x0:return;
+            default:break;
         }
 
-        font_draw_char(ed, col, row, c, DRAW_CHAR_ON_GRID);
+        font_draw_char(ed, col, row, c, 1);
         col++;
-    }
-}
-
-void font_draw_str_ng(struct editor_t* ed, char* str, size_t size, int x, int y) {
-    if(!str || size == 0) { return; }
-
-    for(size_t i = 0; i < size; i++) {
-        char c = str[i];
-
-        switch(c) {
-            case '\t':
-                x += FONT_TAB_WIDTH * ed->font.width;
-                break;
-
-            case 0:
-                return;
+        if(col > max_column) {
+            col = col_origin;
+            row++;
         }
-
-        font_draw_char(ed, x, y, c, 0);
-        x += ed->font.width;
     }
 
-}
-
-
-int font_draw_str_wrapped(struct editor_t* ed, char* str, 
-        size_t size, int col, int row, int max_column) {
-    int num_wraps = 0;
-    
-    if(!str || size == 0) { 
-        goto done;
-    }
-
-    
-    int col_origin = col;
-
-    size_t word_size = 0;
-    char word_buf[LINE_WRAP_WORD_BUFFER_SIZE] = {0};
-
-    for(size_t i = 0; i < size; i++) {
-        char c = str[i];
-        int end = (i+1 == size);
-
-        word_buf[word_size] = c;
-        word_size++;
-
-        if(word_size >= LINE_WRAP_WORD_BUFFER_SIZE) {
-            // TODO
-            word_size = 0;
-            continue;
-        }
-
-
-
-        if(c == 0x20 || end) {
-
-            if(end && !strchr(word_buf, 0x20)) {
-                
-                for(size_t k = 0; k < word_size; k++) {
-                    font_draw_char(ed, col, row, word_buf[k], DRAW_CHAR_ON_GRID);
-                    col++;
-                    if(col > max_column) {
-                        col = col_origin;
-                        row++;
-                    }
-                }
-
-                continue;
-            }
-
-            if((col + word_size) > max_column) {
-                col = col_origin;
-                row++;
-            }
-
-            font_draw_str(ed, word_buf, word_size, col, row);
-            col += word_size;
-            word_size = 0;
-        }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        /*
-
-        if(word_size > max_column) {
-        //if(word_size >= LINE_WRAP_WORD_BUFFER_SIZE) {
-            //word_size = LINE_WRAP_WORD_BUFFER_SIZE;
-
-            // no need to check for tabs or spaces because it would have been wrapped earlier,
-            // this "word" doesnt have them so just draw it and go to next line when max column is reached.
-
-            for(size_t j = 0; j < word_size; j++) {
-                char b = word_buf[j];
-                if(b == 0) {
-                    goto done;
-                }
-                font_draw_char(ed, col, row, b, DRAW_CHAR_ON_GRID);
-                col++;
-                if(col >= max_column) {
-                    row++;
-                    num_wraps++;
-                    col = col_origin;
-                }
-            }
-
-            //memset(word_buf, 0, word_size);
-            word_size = 0;
-            continue;
-        }
-
-
-        if(c == '\t') {
-            col += FONT_TAB_WIDTH;
-            continue;
-        }
-
-        if(c == 0) {
-            goto done;
-        }
-
-        word_buf[word_size] = c;
-        word_size++;
-
-
-        if(c == 0x20 || (i+1 == size)) {
-
-            if((col + word_size) > max_column) {
-                row++;
-                num_wraps++;
-                col = col_origin;
-            }
-
-            font_draw_str(ed, word_buf, word_size, col, row);
-            col += word_size;
-            word_size = 0;
-
-        }
-        */
-    }
-
-done:
-    return num_wraps;
 }
 
 
@@ -602,14 +492,14 @@ void draw_error_buffer(struct editor_t* ed) {
 
 
         glColor3f(0.7, 0.4, 0.4);
-        font_draw_str(ed, "--> ERROR <--", 13, x, y);
+        font_draw_data(ed, "--> ERROR <--", 13, x, y, 1);
         
         glColor3f(0.5, 0.4, 0.4);
-        font_draw_str(ed, "Press ALT+C to close this box", 29, x+15, y);
+        font_draw_data(ed, "Press ALT+C to close this box", 29, x+15, y, 1);
 
 
         glColor3f(0.9, 0.85, 0.85);
-        font_draw_str_wrapped(ed, ed->error_buf, ed->error_buf_size, 
+        font_draw_data_wrapped(ed, ed->error_buf, ed->error_buf_size, 
                 x, y+1, x+60);
     }
 }
@@ -634,8 +524,8 @@ void draw_info_buffer(struct editor_t* ed) {
         font_draw_char(ed, x + ed->font.width+10, y, '>', 0);
 
         glColor3f(0.4, 0.5, 0.5);
-        font_draw_str_ng(ed, ed->info_buf, ed->info_buf_size, 
-                x + ed->font.width*2 + 20, y);
+        font_draw_data(ed, ed->info_buf, ed->info_buf_size, 
+                x + ed->font.width*2 + 20, y, 0);
     }
 }
 
@@ -689,7 +579,8 @@ struct editor_t* init_editor(const char* fontfile,
     ed->current_buffer = 0;
     ed->max_row = 0;
     ed->max_column = 0;
-
+    ed->num_active_buffers = 1;
+    
     memset(ed->error_buf, 0, ERROR_BUFFER_MAX_SIZE);
 
     if(!setup_buffers(ed)) {
@@ -704,7 +595,8 @@ struct editor_t* init_editor(const char* fontfile,
         fprintf(stderr, "glfw failed to initialize.\n");
         goto giveup;
     }
-    
+   
+    printf("+ initialized glfw.\n");
 
     glfwWindowHint(GLFW_SCALE_TO_MONITOR, fullscreen);
     glfwWindowHint(GLFW_FLOATING, !fullscreen);
@@ -718,7 +610,20 @@ struct editor_t* init_editor(const char* fontfile,
         goto giveup;
     }
 
+    printf("+ window created.\n");
+
     glfwMakeContextCurrent(ed->win);
+
+
+    GLenum glew_err = glewInit();
+    if(glew_err != GLEW_OK) {
+        fprintf(stderr, "error when intializing glew: %s\n", glewGetErrorString(glew_err));
+        goto giveup;
+    }
+
+    printf("  glew version: %s\n", glewGetString(GLEW_VERSION));
+    printf("  opengl version: %s\n", glGetString(GL_VERSION));
+
 
     glfwSetWindowSizeLimits(ed->win, 800, 700, GLFW_DONT_CARE, GLFW_DONT_CARE);
     glfwSetWindowUserPointer(ed->win, ed); // set user pointer for use in callbacks
@@ -727,14 +632,51 @@ struct editor_t* init_editor(const char* fontfile,
     glfwSetKeyCallback    (ed->win, key_input_handler);
     glfwSetCharCallback   (ed->win, char_input_handler);
     glfwSetScrollCallback (ed->win, scroll_input_handler);
+    glfwSetMouseButtonCallback (ed->win, mouse_bttn_input_handler);
 
     glfwGetWindowSize(ed->win, &ed->window_width, &ed->window_height);
 
 
     ed->max_column = (ed->window_width / ed->font.width);
     ed->max_row = (ed->window_height / ed->font.height) - 2;
-
+    
+    ed->mode = MODE_NORMAL;
     ed->ready = 1;
+
+    ed->cmd_str = create_string();
+    ed->cmd_cursor = 0;
+
+
+    // -------- TESTING ---------
+
+
+
+
+    float vertices[] = {
+        -0.5, -0.5, 0.0,
+         0.0,  0.5, 0.0,
+         0.5, -0.5, 0.0
+    };
+
+    
+    ed->vbo = 0;
+    glGenBuffers(1, &ed->vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, ed->vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+
+
+    unsigned int shader = create_shader_program(
+            VERTEX_SHADER_SRC,  
+            FRAGMENT_SHADER_SRC
+            );
+
+    printf("shader id: %i\n", shader);
+
+    delete_shader_program(shader);
+
+
+    // -------------------
 
 giveup:
     return ed;
@@ -761,6 +703,7 @@ void cleanup_editor(struct editor_t** e) {
         }
         
         unload_font(&(*e)->font);
+        cleanup_string(&(*e)->cmd_str);
 
         free(*e);
         *e = NULL;

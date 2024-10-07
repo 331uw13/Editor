@@ -22,19 +22,19 @@ struct buffer_t {
 
     size_t scroll;
 
-    size_t cursor_x;
-    size_t cursor_y;
-    size_t cursor_prev_x; // saved cursor_x position if current->data_size > 2
+    long int cursor_x;
+    long int cursor_y;
+    long int cursor_prev_x; // saved cursor_x position if current->data_size > 2
 
     struct string_t* current;
 
-    char filename[BUFFER_MAX_FILENAME_SIZE];
+    char filename[BUFFER_MAX_FILENAME_SIZE+1];
     size_t filename_size;
     int file_opened;
 
     int id; // buffer can be accessed from 'editor->buffers[id]'
-    int ready; // is the buffer initialized?
-
+    int ready;  // is the buffer initialized?
+    int active; // render buffer content?
 };
 
 int    setup_buffer(struct buffer_t* buf, int id);

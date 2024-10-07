@@ -22,8 +22,21 @@ long int liclamp(long int t, long int min, long int max) {
     return (t < min) ? min : (t > max) ? max : t;
 }
 
+float fclamp(float t, float min, float max) {
+    return (t < min) ? min : (t > max) ? max : t;
+}
+
 int inbounds(long int t, long int min, long int max) {
     return (t < min) ? 0 : (t > max) ? 0 : 1;
+}
+
+unsigned long djb2_hash(char* str) {
+    unsigned long hash = 5381;
+    int c;
+    while((c = *str++)) {
+        hash = ((hash << 5) + hash) + c;
+    }
+    return hash;
 }
 
 

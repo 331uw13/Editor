@@ -118,6 +118,9 @@ error:
 int string_rem_char(struct string_t* str, size_t index) {
     int ok = 0;
     if(string_ready(str)) {
+        if(str->data_size == 0) {
+            goto done;
+        }
         if(index > str->data_size) {
             goto done;
         }
@@ -252,6 +255,7 @@ int string_cut_data(struct string_t* str, size_t offset, size_t size) {
         }
 
         str->data_size -= size;
+        ok = 1;
     }
 error:
     return ok;
@@ -273,6 +277,17 @@ size_t string_num_chars(struct string_t* str, size_t start, size_t end, char c) 
     return num;
 }
 
+int string_clear_data(struct string_t* str) {
+    int ok = 0;
+    if(string_ready(str)) {
+        memset(str->data, 0, str->data_size);
+        str->data_size = 0;
+        ok = 1;
+    }
+    return ok;
+}
+
+
 int string_set_data(struct string_t* str, char* data, size_t size) {
     int ok = 0;
 
@@ -283,5 +298,4 @@ int string_set_data(struct string_t* str, char* data, size_t size) {
 
     return ok;
 }
-
 
