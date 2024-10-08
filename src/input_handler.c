@@ -87,6 +87,14 @@ void _key_mod_input_CTRL(struct editor_t* ed, struct buffer_t* buf, int key) {
             break;
 
 
+        case GLFW_KEY_MINUS:
+            font_set_scale(&ed->font, ed->font.scale + 0.25);
+            break;
+
+        case GLFW_KEY_0:
+            font_set_scale(&ed->font, ed->font.scale - 0.25);
+            break;
+
         default:break;
     }
 }

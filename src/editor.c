@@ -20,10 +20,12 @@ void _framebuffer_size_callback(GLFWwindow* win, int width, int height) {
         ed->window_height = height;
 
 
+        /*
         if(ed->font.data) {
             ed->max_column = width / ed->font.width;
             ed->max_row = (height / ed->font.height) - 2;
         }
+        */
 
         printf("resized window:%ix%i\n", ed->window_width, ed->window_height);
     }
@@ -69,13 +71,14 @@ void do_safety_check(struct editor_t* ed) {
 }
 
 float column_to_location(struct editor_t* ed, size_t col) {
-    return (float)(col * (ed->font.header.width * ed->font.scale) + EDITOR_X_PADDING);
+    return 0;//(float)(col * (ed->font.header.width * ed->font.scale) + EDITOR_X_PADDING);
 }
 
 float row_to_location(struct editor_t* ed, size_t row) {
-    return (float)(row * (ed->font.header.height * ed->font.scale) + EDITOR_Y_PADDING);
+    return 0;//(float)(row * (ed->font.header.height * ed->font.scale) + EDITOR_Y_PADDING);
 }
 
+/*
 void set_font_scale(struct editor_t* ed, float scale) {
     ed->font.scale = scale;
     ed->font.width = (ed->font.header.width) * (scale);
@@ -253,7 +256,7 @@ void font_draw_data_wrapped(struct editor_t* ed, char* str,
     }
 
 }
-
+*/
 
 void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h) {
     if(x) {
@@ -272,6 +275,7 @@ void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h) {
 }
 
 
+/*
 void draw_rect(struct editor_t* ed, float x, float y, float w, float h, int flag) {
     if(flag == MAP_XYWH) {
         map_xywh(ed, &x, &y, &w, &h);
@@ -332,6 +336,7 @@ void draw_line(struct editor_t* ed, float x0, float y0, float x1, float y1,
 
     glEnd();
 }
+*/
 
 void write_message(struct editor_t* ed, int type, char* err, ...) {
     if(!err) { return; }
@@ -468,6 +473,7 @@ void clear_info_buffer(struct editor_t* ed) {
 }
 
 
+/*
 void draw_error_buffer(struct editor_t* ed) {
     if(ed->error_buf_size > 0) {
         
@@ -528,6 +534,7 @@ void draw_info_buffer(struct editor_t* ed) {
                 x + ed->font.width*2 + 20, y, 0);
     }
 }
+*/
 
 
 int setup_buffers(struct editor_t* ed) {
@@ -548,8 +555,6 @@ error:
     return ok;
 }
 
-
-
 struct editor_t* init_editor(const char* fontfile, 
         int window_width, int window_height, int fullscreen) {
 
@@ -566,13 +571,16 @@ struct editor_t* init_editor(const char* fontfile,
         goto giveup;
     }
 
+    /*
     if(!load_font_from_file(fontfile, &ed->font)) {
         free(ed);
         ed = NULL;
         goto giveup;
     }
+    */
 
     ed->ready = 0;
+    ed->mode = -1;
     ed->win = NULL;
     ed->window_width = 0;
     ed->window_height = 0;
@@ -580,15 +588,9 @@ struct editor_t* init_editor(const char* fontfile,
     ed->max_row = 0;
     ed->max_column = 0;
     ed->num_active_buffers = 1;
-    
-    memset(ed->error_buf, 0, ERROR_BUFFER_MAX_SIZE);
+   
 
-    if(!setup_buffers(ed)) {
-        goto giveup;
-    }
-
-
-    set_font_scale(ed, 1.5);
+    //set_font_scale(ed, 1.5);
 
     if(!glfwInit()) { 
         // TODO  handle glfw errors better!
@@ -625,6 +627,13 @@ struct editor_t* init_editor(const char* fontfile,
     printf("  opengl version: %s\n", glGetString(GL_VERSION));
 
 
+    if(!load_font_from_file(fontfile, &ed->font)) {
+        goto giveup;
+    }
+
+    printf("font loaded '%s'\n", fontfile);
+
+
     glfwSetWindowSizeLimits(ed->win, 800, 700, GLFW_DONT_CARE, GLFW_DONT_CARE);
     glfwSetWindowUserPointer(ed->win, ed); // set user pointer for use in callbacks
                                            //
@@ -636,47 +645,61 @@ struct editor_t* init_editor(const char* fontfile,
 
     glfwGetWindowSize(ed->win, &ed->window_width, &ed->window_height);
 
-
-    ed->max_column = (ed->window_width / ed->font.width);
-    ed->max_row = (ed->window_height / ed->font.height) - 2;
+    //ed->max_column = (ed->window_width / ed->font.width);
+    //ed->max_row = (ed->window_height / ed->font.height) - 2;
     
-    ed->mode = MODE_NORMAL;
-    ed->ready = 1;
-
     ed->cmd_str = create_string();
     ed->cmd_cursor = 0;
-
-
-    // -------- TESTING ---------
-
-
-
-
-    float vertices[] = {
-        -0.5, -0.5, 0.0,
-         0.0,  0.5, 0.0,
-         0.5, -0.5, 0.0
-    };
-
     
     ed->vbo = 0;
-    glGenBuffers(1, &ed->vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, ed->vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    ed->vao = 0;
 
-
-
-    unsigned int shader = create_shader_program(
+   
+    ed->shader = create_shader_program(
             VERTEX_SHADER_SRC,  
             FRAGMENT_SHADER_SRC
             );
 
-    printf("shader id: %i\n", shader);
+    if(!ed->shader) {
+        goto giveup;
+    }
 
-    delete_shader_program(shader);
 
 
-    // -------------------
+    glGenVertexArrays(1, &ed->vao);
+    glBindVertexArray(ed->vao);
+
+    glGenBuffers(1, &ed->vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, ed->vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+
+    size_t stride_size = 4 * sizeof(float);
+
+    // positions
+    //
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride_size, 0);
+    glEnableVertexAttribArray(0);
+    
+    // texture coordinates
+    //
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride_size, (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+
+    glUseProgram(ed->shader);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+
+    memset(ed->error_buf, 0, ERROR_BUFFER_MAX_SIZE);
+    memset(ed->info_buf, 0, INFO_BUFFER_MAX_SIZE);
+    if(!setup_buffers(ed)) {
+        goto giveup;
+    }
+
+    //  -- ready.
+    ed->mode = MODE_NORMAL;
+    ed->ready = 1;
 
 giveup:
     return ed;
@@ -685,8 +708,7 @@ giveup:
 
 void cleanup_editor(struct editor_t** e) {
     if((*e)) {
-        
-
+        printf("cleanup.\n");
         for(int i = 0; i < MAX_BUFFERS; i++) {
             cleanup_buffer(&(*e)->buffers[i]);
         }
@@ -694,14 +716,20 @@ void cleanup_editor(struct editor_t** e) {
         if((*e)->win) {
             glfwDestroyWindow((*e)->win);
             (*e)->win = NULL;
-            printf("\033[32m destroyed window.\033[0m\n");
+            printf(" destroyed window.\n");
         }
      
         if((*e)->ready) {
             glfwTerminate();
-            printf("\033[32m terminated glfw.\033[0m\n");
+            printf(" terminated glfw.\n");
         }
-        
+
+        glDeleteBuffers(1, &(*e)->vbo);
+        glDeleteVertexArrays(1, &(*e)->vao);
+        glDeleteProgram((*e)->shader);
+
+        printf(" deleted vbo, vao and shader\n");
+
         unload_font(&(*e)->font);
         cleanup_string(&(*e)->cmd_str);
 

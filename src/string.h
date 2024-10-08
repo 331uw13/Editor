@@ -34,14 +34,11 @@ int     string_append_char(struct string_t* str, char c);
 // flags for 'string_move_data'
 #define STRING_OVERWRITE_DATA 0x1
 #define STRING_ZERO_SRC 0x2
-/*
-   'dst_offset'  where to move the data from source? (src_str)
-   'src_offset'  where to start moving 'size' bytes of data to 'dst_offset'
-*/
-int string_move_data(struct string_t* dst_str, struct string_t* src_str, 
+//  'dst_offset'  where to move the data from source? (src_str)
+//  'src_offset'  where to start moving 'size' bytes of data to 'dst_offset'
+int     string_move_data(struct string_t* dst_str, struct string_t* src_str, 
                          size_t dst_offset, size_t src_offset,
                          size_t size, int flags);
-
 
 int     string_copy_all(struct string_t* dst_str, struct string_t* src_str);
 int     string_cut_data(struct string_t* str, size_t offset, size_t size);

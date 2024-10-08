@@ -23,7 +23,7 @@ unsigned int create_shader(const char* source, GLenum shader_type) {
     glCompileShader(shader);
 
     char* info_log = NULL;
-    size_t info_log_size = 0;
+    int info_log_size = 0;
 
     glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &info_log_size);
     if(info_log_size > 1) {
@@ -86,7 +86,7 @@ unsigned int create_shader_program(
     glLinkProgram(prog);
 
     char* info_log = NULL;
-    size_t info_log_size = 0;
+    int info_log_size = 0;
 
     glGetProgramiv(prog, GL_INFO_LOG_LENGTH, &info_log_size);
     if(info_log_size > 1) {

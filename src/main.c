@@ -1,12 +1,11 @@
 #include <stdio.h>
 #include <unistd.h>
-#include <GL/gl.h>
+#include <GL/glew.h>
 #include <math.h>
 
 #include "editor.h"
 #include "string.h"
 #include "utils.h"
-#include "gui.h"
 
 #define LINE_NUM_STR_SIZE 28
 
@@ -17,7 +16,8 @@ void draw_buffer(struct editor_t* ed,
         int x_drw_off,
         int y_drw_off)
 {
-    
+
+    /*
     for(size_t i = buf->scroll; i < buf->num_used_lines; i++) {
         if(i > (ed->max_row + buf->scroll)) {
             break;
@@ -41,11 +41,12 @@ void draw_buffer(struct editor_t* ed,
         font_draw_data(ed, line_num_str, LINE_NUM_STR_SIZE, x_drw_off-l-2, i - y_drw_off, 1);
         font_draw_char(ed, x_drw_off-2+1, i - y_drw_off, '|', 1);
     }
+    */
 
 }
 
 void draw_buffer_filenames(struct editor_t* ed) {
-    
+    /*
     int prev_x = 0;
 
     for(unsigned int j = 0; j < ed->num_active_buffers; j++) {
@@ -75,6 +76,7 @@ void draw_buffer_filenames(struct editor_t* ed) {
         }
 
     }
+    */
 }
 
 
@@ -82,17 +84,9 @@ void run_loop(struct editor_t* ed) {
     if(!ed) { return; }
     if(!ed->ready) { return; }
 
-    float cursor_rgb[3]    = { 0.0, 1.0, 0.0 };
-    float cursor_rgb_2[3]  = { 0.0, 0.35, 0.0 };
-    char line_num_str[28];
-
-
-    struct gui_t gui;
-    gui.num_buttons = 0;
-    gui.num_fsliders = 0;
-    gui.num_isliders = 0;
-
-
+    //float cursor_rgb[3]    = { 0.0, 1.0, 0.0 };
+    //float cursor_rgb_2[3]  = { 0.0, 0.35, 0.0 };
+    //char line_num_str[28];
 
     while(!glfwWindowShouldClose(ed->win)) {
         glClear(GL_COLOR_BUFFER_BIT);
@@ -100,6 +94,27 @@ void run_loop(struct editor_t* ed) {
 
         struct buffer_t* buf = &ed->buffers[ed->current_buffer];
 
+
+
+
+        draw_data(ed, 30, 50, "test, 123", 9, DRW_NO_GRID);
+
+
+        /*
+        for(char i = 0x20; i < FONT_NUM_CHARS; i++) {
+        
+
+            draw_char(ed, x, y, i, DRW_NO_GRID);
+            x += ed->font.char_w;
+
+            if(x > ed->window_width-30) {
+                x = 30;
+                y += ed->font.char_h;
+            }
+        }
+        */
+
+        /*
         int x_drw_off = snprintf(line_num_str, LINE_NUM_STR_SIZE, "%li", buf->num_used_lines)+2;
         int y_drw_off = buf->scroll;
 
@@ -116,6 +131,9 @@ void run_loop(struct editor_t* ed) {
         const float dcursor_x = column_to_location(ed, buf->cursor_x + cursor_draw_offset);
         const float dcursor_y = row_to_location(ed, buf->cursor_y - y_drw_off);
 
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        */
         /*
         // outside green frame
         //
@@ -222,7 +240,7 @@ void run_loop(struct editor_t* ed) {
 
 int main(int argc, char** argv) {
     struct editor_t* ed = 
-        init_editor("Tamsyn8x16b.psf.gz",
+        init_editor("Topaz-8.ttf",
                 900, 750, !INIT_FULLSCREEN);
     
     if(ed) {
