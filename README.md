@@ -1,4 +1,4 @@
 # Text/Code Editor
-using OpenGL and glfw3
+using OpenGL and glfw
 
 > No way near done. I keep updating! <---
