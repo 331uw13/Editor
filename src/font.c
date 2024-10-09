@@ -6,9 +6,10 @@
 #include "editor.h"
 #include "font.h"
 #include "utils.h"
+#include "shader.h"
 
 
-int load_font_from_file(const char* file_path, struct font_t* font) {
+int load_font(const char* file_path, struct font_t* font, const char* vert_shader, const char* frag_shader) {
     int res = 0;
 
     if(font->ready) {
@@ -28,16 +29,61 @@ int load_font_from_file(const char* file_path, struct font_t* font) {
     
     if(FT_New_Face(ft, file_path, 0, &face)) {
         fprintf(stderr, "Failed to load font from '%s'.\n", file_path);
+        FT_Done_FreeType(ft);
         goto error;
     }
+
+    // ok good, now start settings stuff up.
+
 
     FT_Set_Pixel_Sizes(face, 0, 48);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
     font->max_bitmap_w = 0;
     font->max_bitmap_h = 0;
+    font->shader = 0;
+    font->vbo = 0;
+    font->vao = 0;
+    font->shader_color_uniloc = -1;
 
-    for(unsigned char c = 0x20; c < FONT_NUM_CHARS; c++) {
+    font->shader = create_shader_program(vert_shader, frag_shader);
+    if(!font->shader) {
+        goto error_and_done;
+    }
+
+    glGenVertexArrays(1, &font->vao);
+    glBindVertexArray(font->vao);
+
+    glGenBuffers(1, &font->vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, font->vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+    const size_t stride_size = 4 * sizeof(float);
+
+    // positions
+    //
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride_size, 0);
+    glEnableVertexAttribArray(0);
+
+    // texture coordinates
+    //
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride_size, (void*)(2*sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    font->shader_color_uniloc = 
+        glGetUniformLocation(font->shader,
+                FONT_VERT_SHADER_COLOR_UNIFORM_NAME);
+
+    if(font->shader_color_uniloc < 0) {
+        // this should never happend but just in case.. 
+        // could be annoying to debug later if something weird happened.
+        fprintf(stderr, "\033[33mwarning: uniform location not found for '%s'\033[0m\n",
+                FONT_VERT_SHADER_COLOR_UNIFORM_NAME);
+    }
+    
+    for(unsigned char c = 0x20; c < 0x7F; c++) {
         
         if(FT_Load_Char(face, c, FT_LOAD_RENDER)) {
             fprintf(stderr, "warning: FT_Load_Char failed '%c'\n font_path: '%s'\n", 
@@ -71,22 +117,20 @@ int load_font_from_file(const char* file_path, struct font_t* font) {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-        font->glyphs[c] = (struct glyph_t) {
+        font->glyphs[c - 0x20] = (struct glyph_t) {
             .texture = tex,
             .advance = face->glyph->advance.x,
             .width = bitmap_width,
             .height = bitmap_height,
-            .bearing_x = face->glyph->bitmap_left,//face->glyph->bitmap_left,
+            .bearing_x = face->glyph->bitmap_left,
             .bearing_y = face->glyph->bitmap_top,
             .test = face->glyph->metrics.width
         };
-
-        /*
-        if(c >= 0x20) {
-            printf(" '%c' | '%i'\n", c, tex);
-        }
-        */
     }
+
+    font_set_color(font, 1.0, 1.0, 1.0);
+
+error_and_done:
 
     FT_Done_Face(face);
     FT_Done_FreeType(ft);
@@ -110,6 +154,11 @@ int unload_font(struct font_t* font) {
             
         }
 
+        glDeleteProgram(font->shader);
+        glDeleteBuffers(1, &font->vbo);
+        glDeleteVertexArrays(1, &font->vao);
+
+        font->ready = 0;
         res = 1;
     }
 
@@ -129,13 +178,30 @@ void font_set_scale(struct font_t* font, float scale) {
     
 }
 
+void font_set_color(struct font_t* font, float r, float g, float b) {
+    glUseProgram(font->shader);
+    glUniform3f(font->shader_color_uniloc, r, g, b);
+}
+
+void font_set_color_hex(struct font_t* font, unsigned int hex) {
+    font_set_color(font, UNHEX(hex));
+}
+
 
 void draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid) {
     if((c < 0x20) || (c > 0x7F)) {
         return;
     }
+    struct glyph_t* g = &ed->font.glyphs[c - 0x20];
 
-    struct glyph_t* g = &ed->font.glyphs[c];
+    if(!g) {
+        return;
+    }
+
+    if(use_grid) {
+        x = column_to_location(ed, x);
+        y = row_to_location(ed, y);
+    }
 
     float xp = x + g->bearing_x * ed->font.scale;
     float yp = y + (g->height - g->bearing_y) * ed->font.scale;
@@ -160,12 +226,14 @@ void draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid)
 
     // TODO: optimize.
 
-    glUseProgram(ed->shader);
+
+    glBindVertexArray(ed->font.vao);
+
+    glUseProgram(ed->font.shader);
     glActiveTexture(GL_TEXTURE0);
 
-
     glBindTexture(GL_TEXTURE_2D, g->texture);
-    glBindBuffer(GL_ARRAY_BUFFER, ed->vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, ed->font.vbo);
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -195,15 +263,9 @@ void draw_data(struct editor_t* ed, int x, int y, char* data, size_t size, int u
         }
 
         draw_char(ed, x, y, c, use_grid);
-
         x += x_inc;
     }
 }
-
-
-
-
-
 
 
 

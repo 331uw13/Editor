@@ -79,9 +79,8 @@ struct editor_t {
     int max_row;
 
 
-    unsigned int vbo; // vertex buffer object.
-    unsigned int vao; // vertex array object.
-    unsigned int shader;
+    //unsigned int vbo; // vertex buffer object.
+    //unsigned int vao; // vertex array object.
 
 
     // the error which is written to the buffer must be null terminated.

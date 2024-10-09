@@ -19,7 +19,12 @@ void _framebuffer_size_callback(GLFWwindow* win, int width, int height) {
         ed->window_width = width;
         ed->window_height = height;
 
+        if(ed->font.ready) {
 
+            ed->max_column = width / ed->font.char_w;
+            ed->max_row = height / ed->font.char_h - 2;
+
+        }
         /*
         if(ed->font.data) {
             ed->max_column = width / ed->font.width;
@@ -71,192 +76,13 @@ void do_safety_check(struct editor_t* ed) {
 }
 
 float column_to_location(struct editor_t* ed, size_t col) {
-    return 0;//(float)(col * (ed->font.header.width * ed->font.scale) + EDITOR_X_PADDING);
+    return col * ed->font.char_w + EDITOR_X_PADDING;
 }
 
 float row_to_location(struct editor_t* ed, size_t row) {
-    return 0;//(float)(row * (ed->font.header.height * ed->font.scale) + EDITOR_Y_PADDING);
+    return row * ed->font.char_h + EDITOR_Y_PADDING;
 }
 
-/*
-void set_font_scale(struct editor_t* ed, float scale) {
-    ed->font.scale = scale;
-    ed->font.width = (ed->font.header.width) * (scale);
-    ed->font.height = (ed->font.header.height) * (scale);
-
-    ed->font.r_width = ed->font.width * 2;
-    ed->font.r_height = ed->font.height * 1.8;
-
-}
-
-int load_font_from_file(const char* fontfile, struct psf2_font* font) {
-    int res = 0;
-    if(font == NULL || fontfile == NULL) {
-        fprintf(stderr, "no fontfile or pointer to font at 'load_font_from_file'\n");
-        goto error;
-    }
-
-    if(access(fontfile, F_OK) != 0) {
-        fprintf(stderr, "the font file doesnt exist.\n");
-        goto error;
-    }
-
-    gzFile file = gzopen(fontfile, "r");
-    if(file == NULL) {
-        perror("gzopen");
-        fprintf(stderr, "failed to open the font file.\n");
-        goto error;
-    }
-
-    size_t length = gzfread(&font->header, sizeof font->header, 1, file);
-    if(length == 0) {
-        fprintf(stderr, "%s\n", gzerror(file, NULL));
-        goto error_and_close;
-    }
-
-    if( (font->header.magic[0] != 0x72) ||
-        (font->header.magic[1] != 0xb5) ||
-        (font->header.magic[2] != 0x4A) ||
-        (font->header.magic[3] != 0x86)) {
-        fprintf(stderr, "'%s' header magic bytes dont match.\n", fontfile);
-        goto error_and_close;
-    }
-
-
-    if(gzeof(file)) {
-        fprintf(stderr, "file '%s' is missing header.\n", fontfile);
-        goto error_and_close;
-    }
-
-    font->data_size = 256*font->header.height;
-    font->data = malloc(font->data_size);
-    if(!font->data) {
-        fprintf(stderr, "failed to allocate memory for font data.\n");
-        goto error_and_close;
-    }
-
-    font->scale = 1.5;
-    font->spacing = 0;
-
-    if((res = gzfread(font->data, font->data_size, 1, file)) == 0) {
-        fprintf(stderr, "%s\n", gzerror(file, NULL));
-    }
-
-error_and_close:
-    gzclose(file);
-
-error:
-    return res;
-}
-
-
-
-void unload_font(struct psf2_font* font) {
-    if(font) {
-        if(font->data) {
-            free(font->data);
-            font->data = NULL;
-            printf("\033[32m unloaded font.\033[0m\n");
-        }
-    }
-}
-
-
-void font_draw_char(struct editor_t* ed, int col, int row, char c, int on_grid) {
-    if(!ed || c <= 0x1F || c >= 0x7F) { return; }
-    if(!ed->font.data) { return; }
-
-    float x = (on_grid) ? column_to_location(ed, col) : (float)col;
-    float y = (on_grid) ? row_to_location(ed, row) : (float)row;
-
-    glPointSize(ed->font.scale);
-    glBegin(GL_POINTS);
-
-    int origin_x = x;
-
-
-    for(unsigned char i = 0; i < ed->font.header.height; i++) {
-        unsigned char g = ed->font.data[c*ed->font.header.height+i];
-        for(int j = 0; j < 8; j++) {
-            if(g & 0x80) {
-                float mx = map(x, 0.0, ed->window_width, -1.0, 1.0);
-                float my = map(y, 0.0, ed->window_height, 1.0, -1.0);
-            
-                glVertex2f(mx, my);
-
-            }
-            g = g << 1;
-            x += ed->font.scale;
-        }
-        y += ed->font.scale;
-        x = origin_x;
-    }
-
-    glEnd();
-}
-
-void font_draw_data(struct editor_t* ed,
-        char* str, size_t size,
-        int x,
-        int y,
-        int on_grid) 
-{
-    if(!str || size == 0) {
-        return;
-    }
-
-    const int x_inc = (on_grid) ? 1 : (ed->font.width);
-    const int tab_inc = FONT_TAB_WIDTH * x_inc;
-
-
-    for(size_t i = 0; i < size; i++) {
-        char c = str[i];
-
-        switch(c) {
-            case 0x9:
-                x += tab_inc;
-                continue;
-            
-            case 0x0:return;
-            default:break;
-        }
-        if(c <= 0x1F || c >= 0x7F) {
-            continue;
-        }
-
-        font_draw_char(ed, x, y, c, on_grid);
-        x += x_inc;
-    }
-}
-
-void font_draw_data_wrapped(struct editor_t* ed, char* str, 
-        size_t size, int col, int row, int max_column) 
-{
-    // TODO make this better this sucks....
-
-    const int col_origin = col;
-
-    for(size_t i = 0; i < size; i++) {
-        char c = str[i];
-        switch(c) {
-            case 0x9:
-                col += FONT_TAB_WIDTH;
-                continue;
-
-            case 0x0:return;
-            default:break;
-        }
-
-        font_draw_char(ed, col, row, c, 1);
-        col++;
-        if(col > max_column) {
-            col = col_origin;
-            row++;
-        }
-    }
-
-}
-*/
 
 void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h) {
     if(x) {
@@ -273,70 +99,6 @@ void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h) {
         *h = (*h > 0) ? (*h / ed->window_height) : *h;
     }
 }
-
-
-/*
-void draw_rect(struct editor_t* ed, float x, float y, float w, float h, int flag) {
-    if(flag == MAP_XYWH) {
-        map_xywh(ed, &x, &y, &w, &h);
-    }
-    glBegin(GL_QUADS);
-    glVertex2f(x, y);
-    glVertex2f(x+w, y);
-    glVertex2f(x+w, y-h);
-    glVertex2f(x, y-h);
-    glEnd();
-}
-
-void draw_framed_rect(struct editor_t* ed, 
-        float x, float y, float w, float h, 
-        float fr, float fg, float fb,  float fthickness,
-        int flag) {
-
-
-    if(flag == MAP_XYWH) {
-        map_xywh(ed, &x, &y, &w, &h);
-        flag = XYWH_ALREADY_MAPPED;
-    }
-
-    draw_rect(ed, x, y, w, h, flag);
-
-    glColor3f(fr, fg, fb);
-    glLineWidth(fthickness);
-    glBegin(GL_LINES);
-
-    glVertex2f(x, y);
-    glVertex2f(x+w, y);
-
-    glVertex2f(x, y-h);
-    glVertex2f(x+w, y-h);
-
-    glVertex2f(x, y);
-    glVertex2f(x, y-h);
-
-    glVertex2f(x+w, y);
-    glVertex2f(x+w, y-h);
-
-    glEnd();
-
-
-}
-
-void draw_line(struct editor_t* ed, float x0, float y0, float x1, float y1, 
-        float thickness, int flag) {
-    if(flag == MAP_XYWH) {
-        map_xywh(ed, &x0, &y0, NULL, NULL);
-        map_xywh(ed, &x1, &y1, NULL, NULL);
-    }
-    glLineWidth(thickness);
-    glBegin(GL_LINES);
-
-    glVertex2f(x0, y0);
-    glVertex2f(x1, y1);
-
-    glEnd();
-}
-*/
 
 void write_message(struct editor_t* ed, int type, char* err, ...) {
     if(!err) { return; }
@@ -571,14 +333,6 @@ struct editor_t* init_editor(const char* fontfile,
         goto giveup;
     }
 
-    /*
-    if(!load_font_from_file(fontfile, &ed->font)) {
-        free(ed);
-        ed = NULL;
-        goto giveup;
-    }
-    */
-
     ed->ready = 0;
     ed->mode = -1;
     ed->win = NULL;
@@ -588,9 +342,6 @@ struct editor_t* init_editor(const char* fontfile,
     ed->max_row = 0;
     ed->max_column = 0;
     ed->num_active_buffers = 1;
-   
-
-    //set_font_scale(ed, 1.5);
 
     if(!glfwInit()) { 
         // TODO  handle glfw errors better!
@@ -627,13 +378,6 @@ struct editor_t* init_editor(const char* fontfile,
     printf("  opengl version: %s\n", glGetString(GL_VERSION));
 
 
-    if(!load_font_from_file(fontfile, &ed->font)) {
-        goto giveup;
-    }
-
-    printf("font loaded '%s'\n", fontfile);
-
-
     glfwSetWindowSizeLimits(ed->win, 800, 700, GLFW_DONT_CARE, GLFW_DONT_CARE);
     glfwSetWindowUserPointer(ed->win, ed); // set user pointer for use in callbacks
                                            //
@@ -651,16 +395,36 @@ struct editor_t* init_editor(const char* fontfile,
     ed->cmd_str = create_string();
     ed->cmd_cursor = 0;
     
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+
+    if(!load_font(fontfile, &ed->font, 
+                FONT_VERTEX_SHADER_SRC,
+                FONT_FRAGMENT_SHADER_SRC)) {
+        goto giveup;
+    }
+    
+
+    printf("font loaded '%s'\n", fontfile);
+
+    
+    ed->max_column = (ed->window_width / ed->font.char_w);
+    ed->max_row = (ed->window_height / ed->font.char_h) - 2;
+
+
+    /*
     ed->vbo = 0;
     ed->vao = 0;
 
    
-    ed->shader = create_shader_program(
-            VERTEX_SHADER_SRC,  
-            FRAGMENT_SHADER_SRC
+    ed->font.shader = create_shader_program(
+            FONT_VERTEX_SHADER_SRC,  
+            FONT_FRAGMENT_SHADER_SRC
             );
 
-    if(!ed->shader) {
+    if(!ed->font.shader) {
         goto giveup;
     }
 
@@ -685,11 +449,10 @@ struct editor_t* init_editor(const char* fontfile,
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride_size, (void*)(2 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
-
-    glUseProgram(ed->shader);
+    glUseProgram(ed->font.shader);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
+    */
 
     memset(ed->error_buf, 0, ERROR_BUFFER_MAX_SIZE);
     memset(ed->info_buf, 0, INFO_BUFFER_MAX_SIZE);
@@ -724,9 +487,11 @@ void cleanup_editor(struct editor_t** e) {
             printf(" terminated glfw.\n");
         }
 
+        /*
         glDeleteBuffers(1, &(*e)->vbo);
         glDeleteVertexArrays(1, &(*e)->vao);
         glDeleteProgram((*e)->shader);
+        */
 
         printf(" deleted vbo, vao and shader\n");
 
