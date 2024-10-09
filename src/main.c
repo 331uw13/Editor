@@ -3,6 +3,7 @@
 #include <GL/glew.h>
 #include <math.h>
 
+#include "draw.h"
 #include "editor.h"
 #include "string.h"
 #include "utils.h"
@@ -19,7 +20,7 @@ void draw_buffer(struct editor_t* ed,
     
     struct string_t* str = NULL;
 
-    for(size_t i = 0; i < buf->num_used_lines; i++) {
+    for(size_t i = buf->scroll; i < buf->num_used_lines; i++) {
         if(i > (ed->max_row + buf->scroll)) {
             break;
         }
@@ -28,13 +29,21 @@ void draw_buffer(struct editor_t* ed,
         if(!str) {
             continue;
         }
+
+        const int y = (i+ydrw_off) - buf->scroll;
         
-        draw_data(ed, xdrw_off, i+ydrw_off, str->data, str->data_size, DRW_ONGRID);
+        font_set_color_hex(&ed->font, 0xFFEEAA);
+        draw_data(ed, xdrw_off, y, str->data, str->data_size, DRW_ONGRID);
 
         
         const int lnum = snprintf(line_num_str, LINE_NUM_STR_SIZE, "%li", i);
-        draw_data(ed, xdrw_off - lnum - 2, i + ydrw_off, line_num_str, LINE_NUM_STR_SIZE, DRW_ONGRID);
-        draw_char(ed, xdrw_off - 2+1, i + ydrw_off, '|', 1);
+        
+
+        font_set_color_hex(&ed->font, 0x504030);
+        draw_data(ed, xdrw_off - lnum - 2, y, line_num_str, LINE_NUM_STR_SIZE, DRW_ONGRID);
+        
+        font_set_color_hex(&ed->font, 0x252525);
+        draw_char(ed, xdrw_off - 2+1, y, '|', 1);
     
     }
 }
@@ -44,9 +53,18 @@ void run_loop(struct editor_t* ed) {
     if(!ed) { return; }
     if(!ed->ready) { return; }
 
-    //float cursor_rgb[3]    = { 0.0, 1.0, 0.0 };
-    //float cursor_rgb_2[3]  = { 0.0, 0.35, 0.0 };
     char line_num_str[LINE_NUM_STR_SIZE];
+
+/*
+    struct buffer_t* b = &ed->buffers[ed->current_buffer];
+    for(int i = 0; i < 30; i++) {
+        
+        buffer_add_newline(b, 0, 0);
+        struct string_t* str = b->lines[i];
+        
+        string_add_char(str, 0x20+i, 0);
+    }
+*/
 
     while(!glfwWindowShouldClose(ed->win)) {
         glClear(GL_COLOR_BUFFER_BIT);
@@ -54,7 +72,7 @@ void run_loop(struct editor_t* ed) {
 
         struct buffer_t* buf = &ed->buffers[ed->current_buffer];
 
-        int xdrw_off = snprintf(line_num_str, LINE_NUM_STR_SIZE, "%li", buf->num_used_lines)+2;
+        int xdrw_off = snprintf(line_num_str, LINE_NUM_STR_SIZE, "%li", buf->num_used_lines-1)+2;
         int ydrw_off = 1;
 
         int curdrw_off = xdrw_off;
@@ -66,112 +84,41 @@ void run_loop(struct editor_t* ed) {
 
         curdrw_off += num_tabs;
     
-        const float dcursor_x = column_to_location(ed, buf->cursor_x + curdrw_off);
-        const float dcursor_y = row_to_location(ed, buf->cursor_y - ydrw_off);
+        const float dcur_x = column_to_location(ed, buf->cursor_x + curdrw_off);
+        const float dcur_y = row_to_location(ed, (buf->cursor_y + ydrw_off) - buf->scroll);
 
-
-        /*
-        int x = 0;
-        int y = 2;
-        for(int i = 0x20; i < 0x7F; i++) {
-            
-            draw_char(ed, x, y, i, DRW_ONGRID);
-            x++;
-
-            if(x > ed->max_column) {
-                x = 0;
-                y++;
-            }
-
-
-        }
-        */
-
-
-        
         if(buffer_ready(buf)) {
-        
+
+            // cursor
+            //
+            set_color_hex(ed, 0x104410);
+            draw_rect(ed, dcur_x, dcur_y+3, ed->font.char_w, ed->font.char_h*2+3);
+            set_color_hex(ed, 0x10AA10);
+            draw_rect(ed, dcur_x, dcur_y+3, ed->font.char_w, 3);
+            draw_rect(ed, dcur_x+ed->font.char_w-1, dcur_y+3, 2, ed->font.char_h);
+
+            // TODO draw multiple buffers
+            //
             draw_buffer(ed, buf, line_num_str, xdrw_off, ydrw_off);
-        
         }
         else {
             fprintf(stderr, "ERROR: Uninitialized buffer!\n");
         }
 
 
-        /*
-        // outside green frame
-        //
-        glColor3f(0.0, 0.0, 0.0);
-        draw_framed_rect(ed, 
-                1,
-                1,
-
-                ed->window_width-1,
-                ed->window_height*2-2, 
-                0.2, 0.4,0.1,
-                0.5,
-                MAP_XYWH
-                );
-
-        // cursor background
-        glColor3f(cursor_rgb_2[0], cursor_rgb_2[1], cursor_rgb_2[2]);
-        draw_rect(ed, 
-                dcursor_x,
-                dcursor_y,
-                ed->font.width,
-                ed->font.r_height, MAP_XYWH);
-
-        // cursor right line
-        glColor3f(cursor_rgb[0], cursor_rgb[1], cursor_rgb[2]);
-        draw_rect(ed,
-                dcursor_x + ed->font.width - 1,
-                dcursor_y,
-                1.5,
-                ed->font.r_height, MAP_XYWH
-                );
-
-        // cursor bottom line
-        draw_rect(ed,
-                dcursor_x,
-                dcursor_y + ed->font.height-4,
-                ed->font.width,
-                6, MAP_XYWH
-                );
-                */  
-        /*
         if(ed->mode == MODE_COMMAND_LINE) {
+            set_color_hex(ed, 0x112300);
+            draw_rect(ed, 5, ed->font.char_h+9, ed->window_width-10, ed->font.char_h*2+9);
             
-            glColor3f(0.21,0.126,0.1);
-            draw_framed_rect(ed,
+            font_set_color_hex(&ed->font, 0x337733);
+            draw_char(ed, 10, ed->font.char_h+6, '>', DRW_NO_GRID);
 
-                    3, 3,
-                    ed->window_width-5,
-                    ed->font.r_height+5,
-                    0.67, 0.45, 0.2,
-                    0.3,
-                    MAP_XYWH
-                    );
-
-
-            const int xoff = ed->font.width+10;
-            const int cx = ed->cmd_cursor * ed->font.width + xoff;
-
-            glColor3f(1.0, 0.4, 0.35);
-            draw_line(ed, cx, 5, cx, 5+ed->font.height-5, 2.0, MAP_XYWH);
-            
-            glColor3f(0.55, 0.35, 0.15);
-            font_draw_char(ed, 4, 4, '>', 0);
-
-            glColor3f(0.7, 0.5, 0.35);
-            font_draw_data(ed, ed->cmd_str->data, ed->cmd_str->data_size, xoff, 4, 0);
+            font_set_color_hex(&ed->font, 0x33EE33);
+            draw_data(ed, ed->font.char_w+10, ed->font.char_h+6, 
+                    ed->cmd_str->data, ed->cmd_str->data_size, DRW_NO_GRID);
         }
 
 
-        draw_error_buffer(ed);
-        draw_info_buffer(ed);
-
-        */
         do_safety_check(ed);
 
         ed->mouse_button = 0;

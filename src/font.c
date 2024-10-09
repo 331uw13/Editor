@@ -73,14 +73,10 @@ int load_font(const char* file_path, struct font_t* font, const char* vert_shade
     glBindVertexArray(0);
 
     font->shader_color_uniloc = 
-        glGetUniformLocation(font->shader,
-                FONT_VERT_SHADER_COLOR_UNIFORM_NAME);
+        glGetUniformLocation(font->shader, "font_color");
 
     if(font->shader_color_uniloc < 0) {
-        // this should never happend but just in case.. 
-        // could be annoying to debug later if something weird happened.
-        fprintf(stderr, "\033[33mwarning: uniform location not found for '%s'\033[0m\n",
-                FONT_VERT_SHADER_COLOR_UNIFORM_NAME);
+        fprintf(stderr, "\033[33m'load_font'(warning): uniform location not found.\033[0m\n");
     }
     
     for(unsigned char c = 0x20; c < 0x7F; c++) {
@@ -135,7 +131,7 @@ error_and_done:
     FT_Done_Face(face);
     FT_Done_FreeType(ft);
 
-    font_set_scale(font, 0.5);
+    font_set_scale(font, 0.4);
     res = 1;
 
 error:
@@ -226,7 +222,6 @@ void draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid)
 
     // TODO: optimize.
 
-
     glBindVertexArray(ed->font.vao);
 
     glUseProgram(ed->font.shader);
@@ -256,7 +251,7 @@ void draw_data(struct editor_t* ed, int x, int y, char* data, size_t size, int u
         switch(c) {
             case 0x9:
                 x += x_inc * FONT_TAB_WIDTH;
-                break;
+                continue;
 
             case 0:
                 return;
@@ -266,7 +261,6 @@ void draw_data(struct editor_t* ed, int x, int y, char* data, size_t size, int u
         x += x_inc;
     }
 }
-
 
 
 

@@ -9,6 +9,8 @@
 *   message type FATAL_ERROR_MSG, halt the program if these happen.
 *   error testing.
 
+*   optimize drawing rectangles
+
 *   select text
 * > optimize buffer shift
 *   remember cursor X

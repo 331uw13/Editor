@@ -7,13 +7,11 @@
 
 
 
-#define FONT_VERT_SHADER_COLOR_UNIFORM_NAME "font_color"
-
 static const char FONT_VERTEX_SHADER_SRC[] = {
     "#version 460 core\n"
     "layout (location = 0) in vec2 pos;\n"
     "layout (location = 1) in vec2 texture_coords;\n"
-    "uniform vec3 " FONT_VERT_SHADER_COLOR_UNIFORM_NAME ";\n"
+    "uniform vec3 font_color;\n"
     "out vec2 tex_coords;\n"
     "out vec3 color;\n"
     "\n"

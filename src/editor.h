@@ -26,34 +26,8 @@
 
 #define EDITOR_X_PADDING 10
 #define EDITOR_Y_PADDING 10
-
-/*
-struct psf2header {
-    unsigned char magic[4];
-    unsigned int version;
-    unsigned int headersize;
-    unsigned int flags;
-    unsigned int length;
-    unsigned int charsize;
-    unsigned int height;
-    unsigned int width;
-};
-
-struct psf2_font {
-    struct psf2header header;
-    unsigned char* data;
-    unsigned int data_size;
-    float scale;
-    int spacing;
-
-    int width;  // in scale
-    int height; // 
-
-    int r_width;   // rendering font width or height size anything is kind of fucked.
-    int r_height;  // so this should help a little bit until its fixed.
-
-};
-*/
+#define EDITOR_TEXT_Y_SPACING 1.3 // how much space between lines?
+#define EDITOR_TEXT_X_SPACING 1.0 // how much space between characters?
 
 #define MODE_NORMAL 0
 #define MODE_COMMAND_LINE 1
@@ -61,9 +35,7 @@ struct psf2_font {
 #define COMMAND_LINE_MAX_SIZE 32
 
 struct editor_t {
-    GLFWwindow* win;//struct psf2_font font;
-
-
+    GLFWwindow* win;
     struct font_t font;
 
     struct buffer_t buffers[MAX_BUFFERS];
@@ -79,9 +51,10 @@ struct editor_t {
     int max_row;
 
 
-    //unsigned int vbo; // vertex buffer object.
-    //unsigned int vao; // vertex array object.
-
+    unsigned int vbo;
+    unsigned int vao;
+    unsigned int shader;
+    int shader_color_uniloc; // uniform location.
 
     // the error which is written to the buffer must be null terminated.
     char    error_buf[ERROR_BUFFER_MAX_SIZE];
@@ -107,24 +80,6 @@ void do_safety_check(struct editor_t* ed); // TODO make this better <---
 
 float column_to_location(struct editor_t* ed, size_t col);
 float row_to_location(struct editor_t* ed, size_t row);
-/*
-void set_font_scale(struct editor_t* ed, float scale);
-int  load_font_from_file(const char* fontfile, struct psf2_font* font);
-void unload_font(struct psf2_font* font);
-void font_draw_char(struct editor_t* ed, int col, int row, char c, int on_grid);
-*/
-// if on_grid, is set to 1, then x and y are treated as column and row.
-/*
-void font_draw_data(struct editor_t* ed,
-        char* str, size_t size,
-        int x,
-        int y,
-        int on_grid);
-
-// TODO:
-void font_draw_data_wrapped(struct editor_t* ed, char* str, 
-        size_t size, int col, int row, int max_column);
-*/
 
 // for drawing functions.
 //
@@ -136,16 +91,6 @@ void font_draw_data_wrapped(struct editor_t* ed, char* str,
 void map_xywh(struct editor_t* ed, 
         float* x, float* y, float* w, float* h);
 
-/*
-void draw_rect(struct editor_t* ed, float x, float y, float w, float h, int flag);
-void draw_framed_rect(struct editor_t* ed, 
-        float x, float y, float w, float h, 
-        float frame_r, float frame_g, float frame_b, // rgb 0.0 - 1.0
-        float fthickness, // frame thickness
-        int flag);
-void draw_line(struct editor_t* ed, float x0, float y0, float x1, float y1, 
-        float thickness, int flag);
-*/
 
 // message types
 //

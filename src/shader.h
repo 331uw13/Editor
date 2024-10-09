@@ -7,6 +7,4 @@ unsigned int  create_shader_program  (const char* vertex_src, const char* fragme
 void          delete_shader_program  (unsigned int shader);
 
 
-
-
 #endif

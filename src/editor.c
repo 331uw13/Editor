@@ -10,6 +10,7 @@
 #include "input_handler.h"
 #include "utils.h"
 #include "shader.h"
+#include "draw.h"
 
 void _framebuffer_size_callback(GLFWwindow* win, int width, int height) {
     glViewport(0, 0, width, height);
@@ -76,11 +77,13 @@ void do_safety_check(struct editor_t* ed) {
 }
 
 float column_to_location(struct editor_t* ed, size_t col) {
-    return col * ed->font.char_w + EDITOR_X_PADDING;
+    return (col * ed->font.char_w + EDITOR_X_PADDING)
+        * EDITOR_TEXT_X_SPACING;
 }
 
 float row_to_location(struct editor_t* ed, size_t row) {
-    return row * ed->font.char_h + EDITOR_Y_PADDING;
+    return (row * ed->font.char_h + EDITOR_Y_PADDING)
+        * EDITOR_TEXT_Y_SPACING;
 }
 
 
@@ -342,6 +345,11 @@ struct editor_t* init_editor(const char* fontfile,
     ed->max_row = 0;
     ed->max_column = 0;
     ed->num_active_buffers = 1;
+    ed->vbo = 0;
+    ed->vao = 0;
+    ed->shader = 0;
+    ed->shader_color_uniloc = -1;
+    ed->cmd_cursor = 0;
 
     if(!glfwInit()) { 
         // TODO  handle glfw errors better!
@@ -354,7 +362,6 @@ struct editor_t* init_editor(const char* fontfile,
     glfwWindowHint(GLFW_SCALE_TO_MONITOR, fullscreen);
     glfwWindowHint(GLFW_FLOATING, !fullscreen);
     glfwWindowHint(GLFW_RESIZABLE, fullscreen);
-    
     glfwWindowHint(GLFW_DECORATED, 1);
     
     ed->win = glfwCreateWindow(window_width, window_height, "Editor", NULL, NULL);
@@ -362,7 +369,6 @@ struct editor_t* init_editor(const char* fontfile,
         fprintf(stderr, "failed to create window.\n");
         goto giveup;
     }
-
     printf("+ window created.\n");
 
     glfwMakeContextCurrent(ed->win);
@@ -377,7 +383,6 @@ struct editor_t* init_editor(const char* fontfile,
     printf("  glew version: %s\n", glewGetString(GLEW_VERSION));
     printf("  opengl version: %s\n", glGetString(GL_VERSION));
 
-
     glfwSetWindowSizeLimits(ed->win, 800, 700, GLFW_DONT_CARE, GLFW_DONT_CARE);
     glfwSetWindowUserPointer(ed->win, ed); // set user pointer for use in callbacks
                                            //
@@ -389,11 +394,6 @@ struct editor_t* init_editor(const char* fontfile,
 
     glfwGetWindowSize(ed->win, &ed->window_width, &ed->window_height);
 
-    //ed->max_column = (ed->window_width / ed->font.width);
-    //ed->max_row = (ed->window_height / ed->font.height) - 2;
-    
-    ed->cmd_str = create_string();
-    ed->cmd_cursor = 0;
     
 
     glEnable(GL_BLEND);
@@ -414,17 +414,13 @@ struct editor_t* init_editor(const char* fontfile,
     ed->max_row = (ed->window_height / ed->font.char_h) - 2;
 
 
-    /*
-    ed->vbo = 0;
-    ed->vao = 0;
-
    
-    ed->font.shader = create_shader_program(
-            FONT_VERTEX_SHADER_SRC,  
-            FONT_FRAGMENT_SHADER_SRC
+    ed->shader = create_shader_program(
+            DRW_VERTEX_SHADER_SRC,  
+            DRW_FRAGMENT_SHADER_SRC
             );
 
-    if(!ed->font.shader) {
+    if(!ed->shader) {
         goto giveup;
     }
 
@@ -435,30 +431,22 @@ struct editor_t* init_editor(const char* fontfile,
 
     glGenBuffers(1, &ed->vbo);
     glBindBuffer(GL_ARRAY_BUFFER, ed->vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
-
-    size_t stride_size = 4 * sizeof(float);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 2, NULL, GL_DYNAMIC_DRAW);
 
     // positions
     //
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride_size, 0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
     glEnableVertexAttribArray(0);
-    
-    // texture coordinates
-    //
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride_size, (void*)(2 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+   
+    ed->shader_color_uniloc = glGetUniformLocation(ed->shader, "v_color");
 
-    glUseProgram(ed->font.shader);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    */
 
     memset(ed->error_buf, 0, ERROR_BUFFER_MAX_SIZE);
     memset(ed->info_buf, 0, INFO_BUFFER_MAX_SIZE);
     if(!setup_buffers(ed)) {
         goto giveup;
     }
+    ed->cmd_str = create_string();
 
     //  -- ready.
     ed->mode = MODE_NORMAL;
@@ -487,13 +475,13 @@ void cleanup_editor(struct editor_t** e) {
             printf(" terminated glfw.\n");
         }
 
-        /*
-        glDeleteBuffers(1, &(*e)->vbo);
-        glDeleteVertexArrays(1, &(*e)->vao);
-        glDeleteProgram((*e)->shader);
-        */
-
-        printf(" deleted vbo, vao and shader\n");
+        delete_shader_program((*e)->shader);
+        if((*e)->vbo) {
+            glDeleteBuffers(1, &(*e)->vbo);
+        }
+        if((*e)->vao) {
+            glDeleteVertexArrays(1, &(*e)->vao);
+        }
 
         unload_font(&(*e)->font);
         cleanup_string(&(*e)->cmd_str);
