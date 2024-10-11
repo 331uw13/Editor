@@ -86,8 +86,8 @@ float row_to_location(struct editor_t* ed, size_t row) {
         * EDITOR_TEXT_Y_SPACING;
 }
 
-
 void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h) {
+    // uhh.
     if(x) {
         *x = map(*x, 0.0, ed->window_width, -1.0, 1.0);
     }
@@ -95,11 +95,12 @@ void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h) {
         *y = map(*y, 0.0, ed->window_height, 1.0, -1.0);
     }
     if(w) {
-        *w = map(*w, 0.0, ed->window_width, 0.0, 2.0);
-        //*w = (*w > 0) ? (*w / ed->window_width) : *w;
+        *w = (*w > 0) ? (*w / ed->window_width) : *w;
+        *w *= 2;
     }
     if(h) {
         *h = (*h > 0) ? (*h / ed->window_height) : *h;
+        *h *= 2;
     }
 }
 
@@ -224,7 +225,6 @@ void write_message(struct editor_t* ed, int type, char* err, ...) {
 
     memmove(buf_ptr + *size_ptr, buffer, buf_size);
     *size_ptr += buf_size;
-
 }
 
 void clear_error_buffer(struct editor_t* ed) {
@@ -372,8 +372,6 @@ struct editor_t* init_editor(const char* fontfile,
     printf("+ window created.\n");
 
     glfwMakeContextCurrent(ed->win);
-
-
     GLenum glew_err = glewInit();
     if(glew_err != GLEW_OK) {
         fprintf(stderr, "error when intializing glew: %s\n", glewGetErrorString(glew_err));
@@ -382,20 +380,16 @@ struct editor_t* init_editor(const char* fontfile,
 
     printf("  glew version: %s\n", glewGetString(GLEW_VERSION));
     printf("  opengl version: %s\n", glGetString(GL_VERSION));
-
     glfwSetWindowSizeLimits(ed->win, 800, 700, GLFW_DONT_CARE, GLFW_DONT_CARE);
-    glfwSetWindowUserPointer(ed->win, ed); // set user pointer for use in callbacks
-                                           //
+    glfwSetWindowUserPointer(ed->win, ed);
     glfwSetFramebufferSizeCallback(ed->win, _framebuffer_size_callback);
     glfwSetKeyCallback    (ed->win, key_input_handler);
     glfwSetCharCallback   (ed->win, char_input_handler);
     glfwSetScrollCallback (ed->win, scroll_input_handler);
     glfwSetMouseButtonCallback (ed->win, mouse_bttn_input_handler);
-
     glfwGetWindowSize(ed->win, &ed->window_width, &ed->window_height);
 
     
-
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -405,14 +399,11 @@ struct editor_t* init_editor(const char* fontfile,
                 FONT_FRAGMENT_SHADER_SRC)) {
         goto giveup;
     }
-    
-
     printf("font loaded '%s'\n", fontfile);
 
-    
+
     ed->max_column = (ed->window_width / ed->font.char_w);
     ed->max_row = (ed->window_height / ed->font.char_h) - 2;
-
 
    
     ed->shader = create_shader_program(
@@ -423,7 +414,6 @@ struct editor_t* init_editor(const char* fontfile,
     if(!ed->shader) {
         goto giveup;
     }
-
 
 
     glGenVertexArrays(1, &ed->vao);
@@ -485,6 +475,8 @@ void cleanup_editor(struct editor_t** e) {
 
         unload_font(&(*e)->font);
         cleanup_string(&(*e)->cmd_str);
+
+        (*e)->ready = 0;
 
         free(*e);
         *e = NULL;

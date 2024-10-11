@@ -121,6 +121,16 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
     clear_info_buffer(ed);
 
 
+    //
+    //
+    //
+    // ---------------------------------------------
+    // THIS IS FUCKED: make a better system !!!!!!!!!!!1
+    // ____________________________________________________
+    //
+    //
+    //
+
     if(ed->mode == MODE_COMMAND_LINE) {
         switch(key) {
             case GLFW_KEY_LEFT:
@@ -135,6 +145,7 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
                 }
                 break;
         }
+    
     }
 
     if(mods == 0) {
@@ -219,24 +230,35 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
     struct editor_t* ed = glfwGetWindowUserPointer(win);
     if(!ed) { return; }
 
-    if(ed->mode == MODE_NORMAL) {
-        struct buffer_t* buf = &ed->buffers[ed->current_buffer];
-        if(!buffer_ready(buf)) {
-            return;
-        }
-
-        string_add_char(buf->current, codepoint, buf->cursor_x);
-        move_cursor(buf, 1, 0);
-    }
-    else if(ed->mode == MODE_COMMAND_LINE) {
-        if((ed->cmd_str->data_size+1) >= COMMAND_LINE_MAX_SIZE) {
-            return;
-        }
-        if(string_add_char(ed->cmd_str, codepoint, ed->cmd_cursor)) {
-            ed->cmd_cursor++;
-        }
+    if(!char_ok(codepoint)) {
+        return;
     }
 
+    switch(ed->mode) {
+
+        case MODE_NORMAL:
+            {
+                struct buffer_t* buf = &ed->buffers[ed->current_buffer];
+                if(!buffer_ready(buf)) {
+                    return;
+                }
+                if(string_add_char(buf->current, codepoint, buf->cursor_x)) {
+                    move_cursor(buf, 1, 0);
+                }
+            }
+            break;
+
+        case MODE_COMMAND_LINE:
+            {
+                if(ed->cmd_str->data_size+1 >= COMMAND_LINE_MAX_SIZE) {
+                    return;
+                }
+                if(string_add_char(ed->cmd_str, codepoint, ed->cmd_cursor)) {
+                    ed->cmd_cursor++;
+                }
+            }
+            break;
+    }
 }
 
 void scroll_input_handler(GLFWwindow* win, double xoff, double yoff) {
@@ -244,9 +266,10 @@ void scroll_input_handler(GLFWwindow* win, double xoff, double yoff) {
     if(!ed) { return; }
 
     struct buffer_t* buf = &ed->buffers[ed->current_buffer];
-    int iyoff = (int)yoff;
+    int iyoff = (int)-yoff;
+    
     buffer_scroll(buf, iyoff);
-    move_cursor(buf, 0, -iyoff);
+    move_cursor(buf, 0, iyoff);
 }
 
 void mouse_bttn_input_handler(GLFWwindow* win, int button, int action, int mods) {

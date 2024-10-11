@@ -14,7 +14,8 @@ long int  liclamp(long int t, long int min, long int max);
 float     fclamp(float t, float min, float max);
 
 int inbounds(long int t, long int min, long int max);
-
 unsigned long djb2_hash(char* str);
+
+int char_ok(char c);
 
 #endif

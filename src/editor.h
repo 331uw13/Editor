@@ -81,15 +81,8 @@ void do_safety_check(struct editor_t* ed); // TODO make this better <---
 float column_to_location(struct editor_t* ed, size_t col);
 float row_to_location(struct editor_t* ed, size_t row);
 
-// for drawing functions.
-//
-#define MAP_XYWH 0               // map coordinates to coordinates for opengl ?
-#define XYWH_ALREADY_MAPPED 1    // 
-
-// map X, Y, WIDTH, HEIGHT to usable coordinates.
-// if pointer is set to NULL, continues to operate and leaves the null pointer alone
-void map_xywh(struct editor_t* ed, 
-        float* x, float* y, float* w, float* h);
+// map X, Y, WIDTH, HEIGHT to -1.0 - +1.0
+void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h);
 
 
 // message types

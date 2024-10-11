@@ -28,10 +28,27 @@ static const char DRW_FRAGMENT_SHADER_SRC[] = {
 struct editor_t;
 
 
+// for 'need_mapping'
+//
+#define ALREADY_MAPPED 0  
+#define MAP_XYWH 1
+
+
 void set_color(struct editor_t* ed, float r, float g, float b); // rgb 0.0 - 1.0
 void set_color_hex(struct editor_t* ed, unsigned int hex);
 
-void draw_rect(struct editor_t* ed, float x, float y, float w, float h);
+void draw_rect(struct editor_t* ed,
+        float x, float y,
+        float w, float h,
+        int need_mapping);
+
+// set the rect color with 'set_color..' before calling this function.
+void draw_framed_rect(struct editor_t* ed,
+        float x, float y,
+        float w, float h,
+        unsigned int frame_color,
+        float fthickness, 
+        int need_mapping);
 
 
 

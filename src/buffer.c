@@ -29,11 +29,14 @@ int setup_buffer(struct buffer_t* buf, int id) {
     buf->num_used_lines = 0;
     buf->cursor_x = 0;
     buf->cursor_y = 0;
-    buf->cursor_prev_x = 0;
     buf->file_opened = 0;
     buf->filename_size = 0;
     buf->current = NULL;
     buf->active = 0;
+    buf->max_col = 0;
+    buf->max_row = 0;
+    buf->x = 0;
+    buf->y = 0;
 
     memset(buf->filename, 0, BUFFER_MAX_FILENAME_SIZE);
 
@@ -61,6 +64,10 @@ int setup_buffer(struct buffer_t* buf, int id) {
     buf->ready = 1;
     buf->active = 1;
 
+    buf->max_row = 20;
+    buf->max_col = 32;
+
+
     ok = 1;
     printf("buffer %i ready. %p\n", buf->id, buf->lines);
 
@@ -87,7 +94,6 @@ void cleanup_buffer(struct buffer_t* buf) {
         buf->active = 0;
         buf->cursor_x = 0;
         buf->cursor_y = 0;
-        buf->cursor_prev_x = 0;
         buf->num_used_lines = 0;
         buf->num_alloc_lines = 0;
         buf->id = 0;
@@ -119,21 +125,21 @@ void buffer_reset(struct buffer_t* buf) {
     }
 }
 
-void buffer_scroll(struct buffer_t* buf, int offset) {
+void buffer_set_scroll(struct buffer_t* buf, size_t y) {
     if(buffer_ready(buf)) {
-        buf->scroll = liclamp(buf->scroll - offset,
-                0,
-                buf->num_used_lines - BUFFER_SCROLL_LEAVE_VISIBLE);
-        //move_cursor(buf, 0, -offset);
+        if(buf->num_used_lines < buf->max_row) {
+            return;
+        }
+        buf->scroll = liclamp(y, 
+                0, 
+                buf->num_used_lines);// - BUFFER_SCROLL_LEAVE_VISIBLE);
+    
+        printf("scroll:%li\n", buf->scroll);
     }
 }
 
-void buffer_set_scroll(struct buffer_t* buf, size_t y) {
-    if(buffer_ready(buf)) {
-        buf->scroll = liclamp(y, 
-                0, 
-                buf->num_used_lines - BUFFER_SCROLL_LEAVE_VISIBLE);
-    }
+void buffer_scroll(struct buffer_t* buf, int offset) {
+    buffer_set_scroll(buf, buf->scroll + offset);
 }
 
 int buffer_clear_all(struct buffer_t* buf) {

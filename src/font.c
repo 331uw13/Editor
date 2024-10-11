@@ -115,7 +115,6 @@ int load_font(const char* file_path, struct font_t* font, const char* vert_shade
 
         font->glyphs[c - 0x20] = (struct glyph_t) {
             .texture = tex,
-            .advance = face->glyph->advance.x,
             .width = bitmap_width,
             .height = bitmap_height,
             .bearing_x = face->glyph->bitmap_left,
@@ -185,7 +184,7 @@ void font_set_color_hex(struct font_t* font, unsigned int hex) {
 
 
 void draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid) {
-    if((c < 0x20) || (c > 0x7F)) {
+    if(!char_ok(c)) {
         return;
     }
     struct glyph_t* g = &ed->font.glyphs[c - 0x20];
@@ -203,7 +202,7 @@ void draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid)
     float yp = y + (g->height - g->bearing_y) * ed->font.scale;
 
     float w = (g->width * ed->font.scale);
-    float h = (g->height * ed->font.scale) * 2;
+    float h = (g->height * ed->font.scale);// * 2;
 
     map_xywh(ed, &xp, &yp, &w, &h);
 
@@ -220,7 +219,7 @@ void draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid)
 
     };
 
-    // TODO: optimize.
+    // TODO: optimize... yeah later
 
     glBindVertexArray(ed->font.vao);
 
@@ -238,7 +237,6 @@ void draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid)
 }
 
 void draw_data(struct editor_t* ed, int x, int y, char* data, size_t size, int use_grid) {
-
     if(!data || size == 0) {
         return;
     }
@@ -255,7 +253,13 @@ void draw_data(struct editor_t* ed, int x, int y, char* data, size_t size, int u
 
             case 0:
                 return;
-        }
+        
+            default:
+                if(!char_ok(c)) {
+                    continue;
+                }
+                break;
+        } 
 
         draw_char(ed, x, y, c, use_grid);
         x += x_inc;

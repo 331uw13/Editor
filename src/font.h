@@ -41,7 +41,6 @@ static const char FONT_FRAGMENT_SHADER_SRC[] = {
 
 struct glyph_t {
     unsigned int texture; // texture id opengl can use
-    unsigned int advance; // horizontal distance to next glyph
     int width;
     int height;
 
@@ -69,13 +68,6 @@ struct font_t {
     unsigned int vao;
     int shader_color_uniloc; // uniform location for 'font_color'
 };
-
-
-// ------
-//
-// TODO: we dont need the non characters
-// 
-// ---------
 
 
 struct editor_t;

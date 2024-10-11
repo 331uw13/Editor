@@ -24,7 +24,12 @@ struct buffer_t {
 
     long int cursor_x;
     long int cursor_y;
-    long int cursor_prev_x; // saved cursor_x position if current->data_size > 2
+    //long int cursor_prev_x; // saved cursor_x position if current->data_size > 2
+
+    int x;
+    int y;
+    int max_row;
+    int max_col;
 
     struct string_t* current;
 
@@ -41,8 +46,8 @@ int    setup_buffer(struct buffer_t* buf, int id);
 void   cleanup_buffer(struct buffer_t* buf);
 int    buffer_ready(struct buffer_t* buf);
 void   buffer_reset(struct buffer_t* buf);
-void   buffer_scroll(struct buffer_t* buf, int offset);
 void   buffer_set_scroll(struct buffer_t* buf, size_t y);
+void   buffer_scroll(struct buffer_t* buf, int offset);
 
 int    buffer_clear_all(struct buffer_t* buf);
 // TODO: 'buffer_clear(buf, start_y, end_y);
