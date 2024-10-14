@@ -1,6 +1,5 @@
 #include <GLFW/glfw3.h>
-
-#include <stdio.h> // NOTE: remove after use <--
+#include <stdio.h>
 
 #include "command_line.h" // <-- includes editor.h
 #include "file_io.h"
@@ -8,53 +7,30 @@
 
 
 
-void _handle_enter_key(struct editor_t* ed, struct buffer_t* buf) {
-    
-    switch(ed->mode) {
-        case MODE_NORMAL:
-            if(buffer_add_newline(buf, buf->cursor_x, buf->cursor_y)) {
-                if(buf->cursor_y > (buf->scroll + ed->max_row)) {
-                    buffer_scroll(buf, -1);
-                }
-            }
-            break;
-
-        case MODE_COMMAND_LINE:
-            execute_cmd(ed, ed->cmd_str);
-            break;
+static void _handle_enter_key_on_buffer(struct editor_t* ed, struct buffer_t* buf) {
+    if(buffer_add_newline(buf, buf->cursor_x, buf->cursor_y)) {
+        if(buf->cursor_y > (buf->scroll + ed->max_row)) {
+            buffer_scroll(buf, -1);
+        }
     }
 }
 
-void _handle_backspace_key(struct editor_t* ed, struct buffer_t* buf) {
-    
-    size_t size = 0;
-
-    switch(ed->mode) {
-        case MODE_NORMAL: 
-            if(buf->cursor_x > 0) {
-                if(string_rem_char(buf->current, buf->cursor_x)) {
-                    move_cursor(buf, -1, 0);
-                }
-            }
-            else if(buf->cursor_y > 0) {
-                size = buf->lines[buf->cursor_y-1]->data_size;
-                buffer_shift_data(buf, buf->cursor_y+1, BUFFER_SHIFT_UP);
-                move_cursor_to(buf, size, buf->cursor_y-1);
-                buffer_dec_size(buf, 1);
-            }
-            break;
-
-        case MODE_COMMAND_LINE:
-            if(string_rem_char(ed->cmd_str, ed->cmd_cursor)) {
-                ed->cmd_cursor--;
-            }
-
-            break;
+static void _handle_backspace_key_on_buffer(struct editor_t* ed, struct buffer_t* buf) {
+    if(buf->cursor_x > 0) {
+        if(string_rem_char(buf->current, buf->cursor_x)) {
+            move_cursor(buf, -1, 0);
+        }
+    }
+    else if(buf->cursor_y > 0) {
+        size_t size = buf->lines[buf->cursor_y-1]->data_size;
+        buffer_shift_data(buf, buf->cursor_y+1, BUFFER_SHIFT_UP);
+        move_cursor_to(buf, size, buf->cursor_y-1);
+        buffer_dec_size(buf, 1);
     }
 }
 
 
-void _key_mod_input_CTRL(struct editor_t* ed, struct buffer_t* buf, int key) {
+static void _key_mod_input_CTRL(struct editor_t* ed, struct buffer_t* buf, int key) {
 
     switch(key) {
             // goto end of the line.
@@ -88,141 +64,122 @@ void _key_mod_input_CTRL(struct editor_t* ed, struct buffer_t* buf, int key) {
 
 
         case GLFW_KEY_MINUS:
-            font_set_scale(&ed->font, ed->font.scale + 0.25);
+            font_set_scale(&ed->font, ed->font.scale + 0.1);
             break;
 
         case GLFW_KEY_0:
-            font_set_scale(&ed->font, ed->font.scale - 0.25);
+            font_set_scale(&ed->font, ed->font.scale - 0.1);
             break;
 
-        default:break;
-    }
-}
-
-
-void _key_mod_input_ALT(struct editor_t* ed, struct buffer_t* buf, int key) {
-    switch(key) {
-        
-        case GLFW_KEY_C:
+        case GLFW_KEY_X:
             clear_error_buffer(ed);
             break;
-        
+
         default:break;
     }
 }
+
 
 void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int mods) {
     struct editor_t* ed = glfwGetWindowUserPointer(win);
     
-    if(!ed) { return; }
     if(action == GLFW_RELEASE) { return; }
+    if(!ed) { return; }
 
     struct buffer_t* buf = &ed->buffers[ed->current_buffer];
     clear_info_buffer(ed);
 
 
-    //
-    //
-    //
-    // ---------------------------------------------
-    // THIS IS FUCKED: make a better system !!!!!!!!!!!1
-    // ____________________________________________________
-    //
-    //
-    //
+    if(mods) {
 
-    if(ed->mode == MODE_COMMAND_LINE) {
-        switch(key) {
-            case GLFW_KEY_LEFT:
-                if(ed->cmd_cursor > 0) {
-                    ed->cmd_cursor--;
-                }
-                break;
-
-            case GLFW_KEY_RIGHT:
-                if((ed->cmd_cursor+1) <= ed->cmd_str->data_size) {
-                    ed->cmd_cursor++;
-                }
-                break;
-        }
-    
-    }
-
-    if(mods == 0) {
-        switch(key) {
-
-            /*
-            // FOR TESTING.
-            case GLFW_KEY_HOME:
-                read_file(ed, ed->current_buffer, "testfile.txt", 12);
-                break;
-
-            case GLFW_KEY_INSERT:
-                read_file(ed, ed->current_buffer, "another.txt", 11);
-                break;
-                */
-
-            case GLFW_KEY_ESCAPE:
-                glfwSetWindowShouldClose(win, 1);
-                break;
-
-            case GLFW_KEY_BACKSPACE:
-                _handle_backspace_key(ed, buf);
-                break;
-
-            case GLFW_KEY_ENTER:
-                _handle_enter_key(ed, buf);
-                break;
-     
-
-            case GLFW_KEY_TAB:
-                if(ed->mode != MODE_NORMAL) { return; }
-                string_add_char(buf->current, '\t', buf->cursor_x);
-                move_cursor(buf, 1, 0);
-                break;
-
-     // cursor movement
-     
-            case GLFW_KEY_LEFT:
-                if(ed->mode != MODE_NORMAL) { return; }
-                move_cursor(buf, -1, 0);
-                break;
-            
-            case GLFW_KEY_RIGHT:
-                if(ed->mode != MODE_NORMAL) { return; }
-                move_cursor(buf, 1, 0);
-                break;
-            
-            case GLFW_KEY_UP:
-                if(ed->mode != MODE_NORMAL) { return; }
-                move_cursor(buf, 0, -1);
-                if(buf->cursor_y < buf->scroll) {
-                    buffer_scroll(buf, 1);
-                }
-                break;
-            
-
-            case GLFW_KEY_DOWN:
-                if(ed->mode != MODE_NORMAL) { return; }
-                move_cursor(buf, 0, 1);
-                if(buf->cursor_y > (buf->scroll + ed->max_row)) {
-                    buffer_scroll(buf, -1);
-                }
-                break;
-
-
-            default: break;
-        }
-    }
-    else if(mods > 0) {
         if(mods == GLFW_MOD_CONTROL) {
             _key_mod_input_CTRL(ed, buf, key);
         }
-        else if(mods == GLFW_MOD_ALT) {
-            _key_mod_input_ALT(ed, buf, key);
-        }
+
+        return;
     }
 
+    switch(ed->mode) {
+
+        case MODE_NORMAL: // text edit mode.
+            {
+                switch(key) {
+
+                    case GLFW_KEY_LEFT:
+                        move_cursor(buf, -1, 0);
+                        break;
+
+                    case GLFW_KEY_RIGHT:
+                        move_cursor(buf, 1, 0);
+                        break;
+
+                    case GLFW_KEY_DOWN:
+                        move_cursor(buf, 0, 1);
+                        break;
+
+                    case GLFW_KEY_UP:
+                        move_cursor(buf, 0, -1);
+                        break;
+
+
+
+                    case GLFW_KEY_ENTER:
+                        _handle_enter_key_on_buffer(ed, buf);
+                        break;
+
+                    case GLFW_KEY_BACKSPACE:
+                        _handle_backspace_key_on_buffer(ed, buf);
+                        break;
+
+                    case GLFW_KEY_TAB:
+                        if(string_add_char(buf->current, '\t', buf->cursor_x)) {
+                            move_cursor(buf, 1, 0);
+                        }
+                        break;
+
+                }
+            }
+            break;
+    
+        case MODE_COMMAND_LINE:
+            {
+                switch(key) {
+                    
+                    case GLFW_KEY_LEFT:
+                        if(ed->cmd_cursor > 0) {
+                            ed->cmd_cursor--;
+                        }
+                        break;
+
+                    case GLFW_KEY_RIGHT:
+                        if((ed->cmd_cursor+1) <= ed->cmd_str->data_size) {
+                            ed->cmd_cursor++;
+                        }
+                        break;
+
+                    case GLFW_KEY_ENTER:
+                        execute_cmd(ed, ed->cmd_str);
+                        break;
+
+                    case GLFW_KEY_ESCAPE:
+                        ed->mode = MODE_NORMAL;
+                        break;
+
+                    case GLFW_KEY_BACKSPACE:
+                        if(string_rem_char(ed->cmd_str, ed->cmd_cursor)) {
+                            if(ed->cmd_cursor > 0) {
+                                ed->cmd_cursor--;
+                            }
+                        }
+                        break;
+                }
+            }
+            break;
+
+        default:
+            fprintf(stderr, "warning: current mode is invalid.\n");
+            break;
+    }
 }
 
 

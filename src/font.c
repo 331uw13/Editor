@@ -133,6 +133,7 @@ error_and_done:
     font_set_scale(font, 0.4);
     res = 1;
 
+    font->ready = 1;
 error:
     return res;
 }
@@ -163,14 +164,18 @@ int unload_font(struct font_t* font) {
 }
 
 void font_set_scale(struct font_t* font, float scale) {
-    if(scale <= 0.0) {
+    if(scale <= FONT_MIN_SCALE) {
+        return;
+    }
+    if(scale >= FONT_MAX_SCALE) {
         return;
     }
 
     font->scale = scale;
     font->char_w = font->max_bitmap_w * scale;
-    font->char_h = font->max_bitmap_h * scale;
-    
+    font->char_h = font->max_bitmap_h * scale;  
+
+    printf("%f\n", scale);
 }
 
 void font_set_color(struct font_t* font, float r, float g, float b) {
@@ -194,26 +199,28 @@ void draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid)
     }
 
     if(use_grid) {
-        x = column_to_location(ed, x);
-        y = row_to_location(ed, y);
+        x = col_to_loc(ed, x);
+        y = row_to_loc(ed, y);
     }
+
+    y += ed->font.char_h;
 
     float xp = x + g->bearing_x * ed->font.scale;
     float yp = y + (g->height - g->bearing_y) * ed->font.scale;
 
     float w = (g->width * ed->font.scale);
-    float h = (g->height * ed->font.scale);// * 2;
+    float h = (g->height * ed->font.scale);
 
     map_xywh(ed, &xp, &yp, &w, &h);
 
 
     float vertices[] = {
         
-        xp, yp+h,   0.0, 0.0,
-        xp, yp,     0.0, 1.0,
+        xp,   yp+h,   0.0, 0.0,
+        xp,   yp,     0.0, 1.0,
         xp+w, yp,   1.0, 1.0,
 
-        xp,  yp+h,  0.0, 0.0,
+        xp,   yp+h,  0.0, 0.0,
         xp+w, yp,   1.0, 1.0,
         xp+w, yp+h,  1.0, 0.0
 
@@ -236,35 +243,77 @@ void draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid)
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void draw_data(struct editor_t* ed, int x, int y, char* data, size_t size, int use_grid) {
-    if(!data || size == 0) {
+static void _draw_data_r(
+        struct editor_t* ed,
+        int x,
+        int y,
+        char* data,
+        long int size,
+        int use_grid,
+        int use_wrapping,
+        int max_x
+        )
+{
+    if(!data) {
         return;
     }
 
-    const int x_inc = use_grid ? 1 : ed->font.char_w;
+    // search for null character?
+    int seek_nc = 0;
+    if((seek_nc = (size < 0) ? 1 : 0)) {
+        size = STRING_MAX_SIZE;
+    }
 
-    for(size_t i = 0; i < size; i++) {
+    const int xinc = use_grid ? 1 : ed->font.char_w;
+    const int yinc = use_grid ? 1 : ed->font.char_h;
+    const int xorigin = x;
+
+
+    for(long int i = 0; i < size; i++) {
         char c = data[i];
 
         switch(c) {
             case 0x9:
-                x += x_inc * FONT_TAB_WIDTH;
+                x += xinc * FONT_TAB_WIDTH;
                 continue;
 
             case 0:
                 return;
-        
+
             default:
                 if(!char_ok(c)) {
                     continue;
                 }
                 break;
-        } 
+        }
 
         draw_char(ed, x, y, c, use_grid);
-        x += x_inc;
+        x += xinc;
+
+        if(use_wrapping && (x > max_x)) {
+            x = xorigin;
+            y += yinc;
+        }
     }
 }
+
+void draw_data(struct editor_t* ed, int x, int y, char* data, long int size, int use_grid) {
+    _draw_data_r(ed, x, y, data, size, use_grid, 0, 0);
+}
+
+void draw_data_wrapped(struct editor_t* ed,
+            int x, int y,
+            char* data,
+            long int size,
+            int max_x,
+            int use_grid)
+{
+    _draw_data_r(ed, x, y, data, size, use_grid, 1, max_x);
+}
+
+
+
+
 
 
 

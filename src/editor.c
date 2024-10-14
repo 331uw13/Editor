@@ -5,6 +5,7 @@
 #include <string.h>
 #include <zlib.h>
 #include <GL/glew.h>
+#include <math.h>
 
 #include "editor.h"
 #include "input_handler.h"
@@ -21,17 +22,9 @@ void _framebuffer_size_callback(GLFWwindow* win, int width, int height) {
         ed->window_height = height;
 
         if(ed->font.ready) {
-
             ed->max_column = width / ed->font.char_w;
             ed->max_row = height / ed->font.char_h - 2;
-
         }
-        /*
-        if(ed->font.data) {
-            ed->max_column = width / ed->font.width;
-            ed->max_row = (height / ed->font.height) - 2;
-        }
-        */
 
         printf("resized window:%ix%i\n", ed->window_width, ed->window_height);
     }
@@ -76,14 +69,38 @@ void do_safety_check(struct editor_t* ed) {
 
 }
 
-float column_to_location(struct editor_t* ed, size_t col) {
+float col_to_loc(struct editor_t* ed, long int col) {
     return (col * ed->font.char_w + EDITOR_X_PADDING)
         * EDITOR_TEXT_X_SPACING;
 }
 
-float row_to_location(struct editor_t* ed, size_t row) {
+float row_to_loc(struct editor_t* ed, long int row) {
     return (row * ed->font.char_h + EDITOR_Y_PADDING)
         * EDITOR_TEXT_Y_SPACING;
+}
+
+long int loc_to_col(struct editor_t* ed, float col) {
+    long int c = 0;
+    if(col > 0.0f) {
+        c = floorf((col / ed->font.char_w));
+    }
+    return c;
+}
+
+long int loc_to_row(struct editor_t* ed, float row) {
+    long int r = 0;
+    if(row > 0.0f) {
+        r = floorf((row / ed->font.char_h) / EDITOR_TEXT_Y_SPACING);
+    }
+    return r;
+}
+
+int cellh(struct editor_t* ed) {
+    return (ed->font.char_h * EDITOR_TEXT_Y_SPACING);
+}
+
+int cellw(struct editor_t* ed) {
+    return (ed->font.char_w * EDITOR_TEXT_X_SPACING);
 }
 
 void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h) {
@@ -237,69 +254,64 @@ void clear_info_buffer(struct editor_t* ed) {
     ed->info_buf_size = 0;
 }
 
-
-/*
 void draw_error_buffer(struct editor_t* ed) {
-    if(ed->error_buf_size > 0) {
-        
-        const int bytes_shown = 64;
-
-        float width = ed->font.r_width * bytes_shown;
-        float height = ed->font.r_height * 8; // TODO: not always 8 if max size is changed.
-
-        float x = ed->window_width / ed->font.width - (bytes_shown+2);
-        float y = 1;
-
-        // background
-        glColor3f(0.15, 0.1, 0.1);
-
-        float xloc = column_to_location(ed, x) - 5;
-        float yloc = row_to_location(ed, y) - 5;
-
-        draw_framed_rect(ed, 
-                xloc, 
-                yloc,
-                width, height, 0.8, 0.2, 0.2, 3.0, MAP_XYWH);
-
-
-        glColor3f(0.7, 0.4, 0.4);
-        font_draw_data(ed, "--> ERROR <--", 13, x, y, 1);
-        
-        glColor3f(0.5, 0.4, 0.4);
-        font_draw_data(ed, "Press ALT+C to close this box", 29, x+15, y, 1);
-
-
-        glColor3f(0.9, 0.85, 0.85);
-        font_draw_data_wrapped(ed, ed->error_buf, ed->error_buf_size, 
-                x, y+1, x+60);
+    if(ed->error_buf_size == 0) {
+        return;
     }
+
+    const int lines_shown = 8;
+    const int chars_shown = 32;
+    
+    const int box_col = ed->max_column - chars_shown;
+    const int box_row = 3;
+
+    float w = chars_shown * cellw(ed);
+    float h = (lines_shown + box_row) * cellh(ed);
+    
+    float x = col_to_loc(ed, box_col)-3;
+    float y = row_to_loc(ed, box_row)-3;
+
+
+    set_color_hex(ed, 0x201310);
+    draw_framed_rect(ed, 
+            x, y,
+            w, h,
+            0x351010, 2.0, MAP_XYWH);
+
+    font_set_color_hex(&ed->font, 0x651800);
+    draw_data(ed, box_col+1, box_row, "-- ERROR --\0", -1, DRW_ONGRID);
+    
+    font_set_color_hex(&ed->font, 0x403030);
+    draw_data(ed, box_col+13, box_row, "ctrl+x to close\0", -1, DRW_ONGRID);
+
+    font_set_color_hex(&ed->font, 0x905030);
+    draw_data_wrapped(ed, box_col, box_row+1, 
+            ed->error_buf, ed->error_buf_size,
+            box_col + chars_shown - 1,
+            DRW_ONGRID);
 }
 
 void draw_info_buffer(struct editor_t* ed) {
-    if(ed->info_buf_size > 0) {
-        
-        float x = 1;
-        float y = ed->window_height - 2*ed->font.height-3;
-
-        glColor3f(0.05, 0.05, 0.05);
-
-        draw_framed_rect(ed, x, y, ed->window_width-1, ed->font.r_height,
-                0.1, 0.3, 0.3, 
-                0.3, MAP_XYWH);
-
-        
-        glColor3f(0.2, 0.4, 0.4);
-        font_draw_char(ed, x+10, y, '>', 0);
-
-        glColor3f(0.5, 0.75, 0.75);
-        font_draw_char(ed, x + ed->font.width+10, y, '>', 0);
-
-        glColor3f(0.4, 0.5, 0.5);
-        font_draw_data(ed, ed->info_buf, ed->info_buf_size, 
-                x + ed->font.width*2 + 20, y, 0);
+    if(ed->info_buf_size == 0) {
+        return;
     }
+
+    float x = 0;
+    float y = ed->window_height - ed->font.char_h-2;
+    float w = ed->window_width;
+    float h = ed->font.char_h;
+
+    set_color_hex(ed, 0x051212);
+    draw_framed_rect(ed,
+            x, y-8, w, h+9,
+            0x052030, 2.0, MAP_XYWH);
+
+    font_set_color_hex(&ed->font, 0x104060);
+    draw_char(ed, x+10, y-5, '>', DRW_NO_GRID);
+    
+    font_set_color_hex(&ed->font, 0x109090);
+    draw_data(ed, x+ed->font.char_w+20, y-5, ed->info_buf, ed->info_buf_size, DRW_NO_GRID);
 }
-*/
 
 
 int setup_buffers(struct editor_t* ed) {

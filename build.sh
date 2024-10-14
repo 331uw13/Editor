@@ -16,7 +16,7 @@ fi
 
 
 if gcc $files $compiler_flag -I/usr/include/freetype2 -I/usr/include/libpng16 -Wall \
-    -lglfw -lGL -lGLEW -lz -lfreetype \
+    -lglfw -lGL -lGLEW -lz -lfreetype -lm \
     -o editor; then
  
     echo -en "\033[32m"

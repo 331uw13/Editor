@@ -5,12 +5,12 @@
 * [!]  make 'buffer_shift_data' safer!
 * [!]  make sure sure to not make size_t  negative
 
-*   FIX scroll, if removing lines and scroll is below the cursor it breaks
+*   FIX scroll
+*   FIX scale
 *   message type FATAL_ERROR_MSG, halt the program if these happen.
 *   error testing.
 
-*   optimize drawing rectangles
-
+*   optimize drawing
 *   select text
 * > optimize buffer shift
 *   remember cursor X
@@ -32,7 +32,6 @@
 *   settings tab ( ?? )
 *   colors can be changed
      (read colors from config to editor structure)
-
 *   change title when focused?
 
 

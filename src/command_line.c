@@ -1,13 +1,14 @@
 #include <string.h>
+#include <stdio.h>
 
 #include "file_io.h"
 #include "command_line.h"
 #include "utils.h"
 
 
-#define CMD_OPEN 6385555319 // "open <filename>"
-#define CMD_WRITE 210732889424 // "write"
-#define CMD_NB 5863637 // "nb" open empty buffer
+#define CMD_OPEN 6385555319     // "open <filename>"
+#define CMD_WRITE 210732889424  // "write"
+#define CMD_QDOT 5863684           // "q." close the editor.
 
 
 // TODO: write(ed, bufid, filename, filenamesize);
@@ -45,11 +46,14 @@ void execute_cmd(struct editor_t* ed, struct string_t* str) {
         }
     }
 
-
     if(argc > 0) {
 
         switch(djb2_hash(args[0])) {
             
+            case CMD_QDOT:
+                glfwSetWindowShouldClose(ed->win, GLFW_TRUE);
+                break;
+
             case CMD_OPEN:
                 if(argc < 2) {
                     write_message(ed, ERROR_MSG, "Usage: open <filename>\0");
@@ -62,15 +66,9 @@ void execute_cmd(struct editor_t* ed, struct string_t* str) {
                 write_file(ed, ed->current_buffer);
                 break;
 
-            case CMD_NB:
-                if((ed->num_active_buffers+1) < MAX_BUFFERS) {
-                    ed->num_active_buffers++;
-                }
-
-                break;
 
             default:
-                write_message(ed, ERROR_MSG, "Command '%s' not found.\n", str->data);
+                write_message(ed, ERROR_MSG, "Command '%s' not found.\n", args[0]);
                 break;
 
         }

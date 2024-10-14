@@ -18,7 +18,7 @@
 #include "config.h" // TODO
 
 
-#define MAX_BUFFERS 8
+#define MAX_BUFFERS 4
 //#define LINE_WRAP_WORD_BUFFER_SIZE 64//512
 
 #define ERROR_BUFFER_MAX_SIZE 256
@@ -27,6 +27,7 @@
 #define EDITOR_X_PADDING 10
 #define EDITOR_Y_PADDING 10
 #define EDITOR_TEXT_Y_SPACING 1.3 // how much space between lines?
+                                  // ^ NOTE: do not set this to 0.
 #define EDITOR_TEXT_X_SPACING 1.0 // how much space between characters?
 
 #define MODE_NORMAL 0
@@ -78,8 +79,12 @@ struct editor_t {
 
 void do_safety_check(struct editor_t* ed); // TODO make this better <---
 
-float column_to_location(struct editor_t* ed, size_t col);
-float row_to_location(struct editor_t* ed, size_t row);
+float  col_to_loc(struct editor_t* ed, long int col);
+float  row_to_loc(struct editor_t* ed, long int row);
+long int loc_to_col(struct editor_t* ed, float col);
+long int loc_to_row(struct editor_t* ed, float row);
+int cellh(struct editor_t* ed);
+int cellw(struct editor_t* ed);
 
 // map X, Y, WIDTH, HEIGHT to -1.0 - +1.0
 void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h);
@@ -94,12 +99,10 @@ void write_message(struct editor_t* ed, int type, char* err, ...);
 void clear_error_buffer(struct editor_t* ed);
 void clear_info_buffer(struct editor_t* ed);
 
-/*
 void draw_error_buffer(struct editor_t* ed);
 void draw_info_buffer(struct editor_t* ed);
-*/
-int setup_buffers(struct editor_t* ed);
 
+int setup_buffers(struct editor_t* ed);
 struct editor_t* init_editor(
         const char* fontfile,
         int window_width, int window_height,

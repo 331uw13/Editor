@@ -20,13 +20,13 @@ void draw_rect(struct editor_t* ed, float x, float y, float w, float h, int need
     }
 
     float vertices[] = {
-        x,  y+h,
-        x,  y,
+        x,    y-h,
+        x,    y,
         x+w,  y,
 
-        x,  y+h,
+        x,    y-h,
         x+w,  y,
-        x+w,  y+h
+        x+w,  y-h
     };
 
     glBindVertexArray(ed->vao);
@@ -48,9 +48,10 @@ void draw_framed_rect(struct editor_t* ed,
 {
     if(need_mapping) {
         map_xywh(ed, &x, &y, &w, &h);
+        need_mapping = ALREADY_MAPPED;
     }
 
-    draw_rect(ed, x, y, w, h, !need_mapping);
+    draw_rect(ed, x, y, w, h, need_mapping);
 
     glBindVertexArray(ed->vao);
     glUseProgram(ed->shader);
@@ -65,9 +66,9 @@ void draw_framed_rect(struct editor_t* ed,
     float f_vertices[] = {
         x,    y,
         x+w,  y,
-        x+w,  y+h,
-        x,    y+h,
-        x,    y+h,
+        x+w,  y-h,
+        x,    y-h,
+        x,    y-h,
         x,    y
     };
 

@@ -134,7 +134,6 @@ void buffer_set_scroll(struct buffer_t* buf, size_t y) {
                 0, 
                 buf->num_used_lines);// - BUFFER_SCROLL_LEAVE_VISIBLE);
     
-        printf("scroll:%li\n", buf->scroll);
     }
 }
 
@@ -253,7 +252,7 @@ error:
 void move_cursor_to(struct buffer_t* buf, size_t col, size_t row) {
     if(!buffer_ready(buf)) { return; }
 
-    if(buf->num_used_lines > row) {
+    if(row < buf->num_used_lines) {
         buf->cursor_y = row;
         buf->current = buf->lines[row];
 
