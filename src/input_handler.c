@@ -1,8 +1,9 @@
 #include <GLFW/glfw3.h>
 #include <stdio.h>
 
-#include "command_line.h" // <-- includes editor.h
-#include "file_io.h"
+#include "editor.h"
+#include "command_line.h"
+#include "file.h"
 #include "utils.h"
 
 
@@ -22,10 +23,16 @@ static void _handle_backspace_key_on_buffer(struct editor_t* ed, struct buffer_t
         }
     }
     else if(buf->cursor_y > 0) {
-        size_t size = buf->lines[buf->cursor_y-1]->data_size;
+        struct string_t* ln = buffer_get_string(buf, buf->cursor_y-1);
+        if(!ln) {
+            return;
+        }
+        
+        size_t lnsize = ln->data_size;
+
         buffer_shift_data(buf, buf->cursor_y+1, BUFFER_SHIFT_UP);
-        move_cursor_to(buf, size, buf->cursor_y-1);
         buffer_dec_size(buf, 1);
+        move_cursor_to(buf, lnsize, buf->cursor_y - 1);
     }
 }
 
@@ -62,7 +69,6 @@ static void _key_mod_input_CTRL(struct editor_t* ed, struct buffer_t* buf, int k
             ed->mode = (ed->mode == MODE_NORMAL) ? MODE_COMMAND_LINE : MODE_NORMAL;
             break;
 
-
         case GLFW_KEY_MINUS:
             font_set_scale(&ed->font, ed->font.scale + 0.1);
             break;
@@ -74,6 +80,24 @@ static void _key_mod_input_CTRL(struct editor_t* ed, struct buffer_t* buf, int k
         case GLFW_KEY_X:
             clear_error_buffer(ed);
             break;
+
+
+        case GLFW_KEY_E:
+            if(buffer_remove_line(buf, buf->cursor_y)) {
+                buf->cursor_x = 0;
+            }
+            break;
+
+        case GLFW_KEY_RIGHT:
+            move_cursor(buf, string_find_char(buf->current,
+                        buf->cursor_x, 0x20, STRFIND_NEXT) + 1, 0);
+            break;
+
+        case GLFW_KEY_LEFT:
+            move_cursor(buf, -string_find_char(buf->current,
+                        buf->cursor_x, 0x20, STRFIND_PREV) - 1, 0);
+            break;
+
 
         default:break;
     }
@@ -137,6 +161,10 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
                         }
                         break;
 
+                    case GLFW_KEY_DELETE:
+                        string_rem_char(buf->current, buf->cursor_x+1);
+                        break;
+
                 }
             }
             break;
@@ -166,8 +194,8 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
                         break;
 
                     case GLFW_KEY_BACKSPACE:
-                        if(string_rem_char(ed->cmd_str, ed->cmd_cursor)) {
-                            if(ed->cmd_cursor > 0) {
+                        if(ed->cmd_cursor > 0) {
+                            if(string_rem_char(ed->cmd_str, ed->cmd_cursor)) {
                                 ed->cmd_cursor--;
                             }
                         }

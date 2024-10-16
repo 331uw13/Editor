@@ -49,7 +49,7 @@ void cleanup_string(struct string_t** str) {
 int string_ready(struct string_t* str) {
     int ready = 0;
     if(str) {
-        ready = (str->data && str->mem_size > 0);
+        ready = (str->data && (str->mem_size > 0));
     }
     return ready;
 }
@@ -298,4 +298,41 @@ int string_set_data(struct string_t* str, char* data, size_t size) {
 
     return ok;
 }
+
+
+size_t string_find_char(struct string_t* str, size_t start_index, char c, int direction) {
+    size_t len = 0;
+    size_t i = start_index;
+
+    size_t end = 0;
+    int inc = 0;
+
+    switch(direction) {
+        case STRFIND_NEXT:
+            end = str->data_size;
+            inc = 1;
+            break;
+
+        case STRFIND_PREV:
+            end = 0;
+            inc = -1;
+            break;
+
+        default: 
+            return 0;
+    }
+
+    while((str->data[i] != c)) {
+        long int x = i+inc;
+        if(x == end) {
+            break;
+        }
+        i = x;
+        len++;
+    }
+
+    return len;
+}
+
+
 

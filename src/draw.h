@@ -26,12 +26,17 @@ static const char DRW_FRAGMENT_SHADER_SRC[] = {
 };
 
 struct editor_t;
+struct buffer_t;
 
-
-// for 'need_mapping'
-//
-#define ALREADY_MAPPED 0  
+// 'need_mapping'?
+// maps coordinates from 0 - 'window size' to -1.0 - +1.0
+#define ALREADY_MAPPED 0
 #define MAP_XYWH 1
+
+// 'use_grid'?
+// basically just coordinates multiply by 'font character width/height'
+#define DRW_NO_GRID 0
+#define DRW_ONGRID  1
 
 
 void set_color(struct editor_t* ed, float r, float g, float b); // rgb 0.0 - 1.0
@@ -40,7 +45,7 @@ void set_color_hex(struct editor_t* ed, unsigned int hex);
 void draw_rect(struct editor_t* ed,
         float x, float y,
         float w, float h,
-        int need_mapping);
+        int need_mapping, int use_grid);
 
 // set the rect color with 'set_color..' before calling this function.
 void draw_framed_rect(struct editor_t* ed,
@@ -48,8 +53,28 @@ void draw_framed_rect(struct editor_t* ed,
         float w, float h,
         unsigned int frame_color,
         float fthickness, 
-        int need_mapping);
+        int need_mapping, int use_grid);
 
+
+// NOTE: if 'size' is set to negative value 
+//       with font drawing functions  data is going to be rendered 
+//       until null character is found.
+void  draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid);
+void  draw_data(struct editor_t* ed, int x, int y, char* data, long int size, int use_grid);
+
+// if use_grid is set to 1 max_x is treated as 'max_column'
+void  draw_data_wrapped(struct editor_t* ed,
+            int x, int y,
+            char* data,
+            long int size,
+            int max_x,
+            int use_grid);
+
+void draw_cursor(struct editor_t* ed, struct buffer_t* buf);
+void draw_buffer(struct editor_t* ed, struct buffer_t* buf, 
+        char* linenum_buf, int xdrw_off);
+
+void draw_buffers(struct editor_t* ed);
 
 
 #endif

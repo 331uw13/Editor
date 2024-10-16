@@ -36,6 +36,7 @@
 #define COMMAND_LINE_MAX_SIZE 32
 
 struct editor_t {
+
     GLFWwindow* win;
     struct font_t font;
 
@@ -51,11 +52,11 @@ struct editor_t {
     int max_column;
     int max_row;
 
-
     unsigned int vbo;
     unsigned int vao;
     unsigned int shader;
     int shader_color_uniloc; // uniform location.
+    unsigned int drw_color_hex; // color saved from set_color_hex().
 
     // the error which is written to the buffer must be null terminated.
     char    error_buf[ERROR_BUFFER_MAX_SIZE];

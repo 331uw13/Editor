@@ -88,23 +88,5 @@ void    font_set_scale(struct font_t* font, float scale);
 void    font_set_color(struct font_t* font, float r, float g, float b); // rgb 0.0 - 1.0.
 void    font_set_color_hex(struct font_t* font, unsigned int hex);
 
-#define DRW_NO_GRID 0
-#define DRW_ONGRID  1
-
-// NOTE: if 'size' is set to negative value 
-//       with font drawing functions  data is going to be rendered 
-//       until null character is found.
-void    draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid);
-void    draw_data(struct editor_t* ed, int x, int y, char* data, long int size, int use_grid);
-
-// if use_grid is set to 1 max_x is treated as 'max_column'
-void    draw_data_wrapped(struct editor_t* ed,
-            int x, int y,
-            char* data,
-            long int size,
-            int max_x,
-            int use_grid);
 
 #endif
-
-

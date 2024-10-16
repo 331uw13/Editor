@@ -46,5 +46,13 @@ int     string_set_data(struct string_t* str, char* data, size_t size);
 size_t  string_num_chars(struct string_t* str, size_t start, size_t end, char c);
 int     string_clear_data(struct string_t* str);
 
+// direction for string_find_char.
+#define STRFIND_NEXT 0
+#define STRFIND_PREV 1
+// if 'c' is found returns length from 'start_index' to found character.
+// returns 0 if not found.
+size_t string_find_char(struct string_t* str, size_t start_index, char c, int direction);
+
+
 
 #endif

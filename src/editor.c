@@ -82,7 +82,7 @@ float row_to_loc(struct editor_t* ed, long int row) {
 long int loc_to_col(struct editor_t* ed, float col) {
     long int c = 0;
     if(col > 0.0f) {
-        c = floorf((col / ed->font.char_w));
+        c = floorf((col / ed->font.char_w) / EDITOR_TEXT_X_SPACING);
     }
     return c;
 }
@@ -259,35 +259,29 @@ void draw_error_buffer(struct editor_t* ed) {
         return;
     }
 
-    const int lines_shown = 8;
+    const int lines_shown = 9;
     const int chars_shown = 32;
-    
-    const int box_col = ed->max_column - chars_shown;
-    const int box_row = 3;
-
-    float w = chars_shown * cellw(ed);
-    float h = (lines_shown + box_row) * cellh(ed);
-    
-    float x = col_to_loc(ed, box_col)-3;
-    float y = row_to_loc(ed, box_row)-3;
-
+    const int bx = ed->max_column - chars_shown;
+    const int by = 1;
 
     set_color_hex(ed, 0x201310);
+
     draw_framed_rect(ed, 
-            x, y,
-            w, h,
-            0x351010, 2.0, MAP_XYWH);
+            bx, by,
+            chars_shown, lines_shown,
+            0x351010, 2.0, MAP_XYWH, DRW_ONGRID);
 
     font_set_color_hex(&ed->font, 0x651800);
-    draw_data(ed, box_col+1, box_row, "-- ERROR --\0", -1, DRW_ONGRID);
+    draw_data(ed, bx+1, by, "-- ERROR --\0", -1, DRW_ONGRID);
     
     font_set_color_hex(&ed->font, 0x403030);
-    draw_data(ed, box_col+13, box_row, "ctrl+x to close\0", -1, DRW_ONGRID);
+    draw_data(ed, bx+13, by, "ctrl+x to close\0", -1, DRW_ONGRID);
 
     font_set_color_hex(&ed->font, 0x905030);
-    draw_data_wrapped(ed, box_col, box_row+1, 
+    draw_data_wrapped(ed, 
+            bx, by+1,
             ed->error_buf, ed->error_buf_size,
-            box_col + chars_shown - 1,
+            bx + chars_shown,
             DRW_ONGRID);
 }
 
@@ -295,7 +289,7 @@ void draw_info_buffer(struct editor_t* ed) {
     if(ed->info_buf_size == 0) {
         return;
     }
-
+/*
     float x = 0;
     float y = ed->window_height - ed->font.char_h-2;
     float w = ed->window_width;
@@ -311,7 +305,10 @@ void draw_info_buffer(struct editor_t* ed) {
     
     font_set_color_hex(&ed->font, 0x109090);
     draw_data(ed, x+ed->font.char_w+20, y-5, ed->info_buf, ed->info_buf_size, DRW_NO_GRID);
+
+*/
 }
+
 
 
 int setup_buffers(struct editor_t* ed) {
@@ -362,6 +359,7 @@ struct editor_t* init_editor(const char* fontfile,
     ed->shader = 0;
     ed->shader_color_uniloc = -1;
     ed->cmd_cursor = 0;
+
 
     if(!glfwInit()) { 
         // TODO  handle glfw errors better!
@@ -441,7 +439,10 @@ struct editor_t* init_editor(const char* fontfile,
     glEnableVertexAttribArray(0);
    
     ed->shader_color_uniloc = glGetUniformLocation(ed->shader, "v_color");
-
+    if(ed->shader_color_uniloc < 0) {
+        fprintf(stderr, "'init_editor': failed to get shader uniform location\n");
+        goto giveup;
+    }
 
     memset(ed->error_buf, 0, ERROR_BUFFER_MAX_SIZE);
     memset(ed->info_buf, 0, INFO_BUFFER_MAX_SIZE);

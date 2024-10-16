@@ -10,26 +10,19 @@
 *   message type FATAL_ERROR_MSG, halt the program if these happen.
 *   error testing.
 
-*   optimize drawing
 *   select text
 * > optimize buffer shift
 *   remember cursor X
 *   verify memchecks are working well.
-*   move left/right by word.
 *   readonly mode
-*   remove buffer 'mem_size' its not used.
-*   dynamic array for buffers filename
 *   confirm clearing the buffer if it has data in it
 *   buffer linewrap
 *   delete current line
 *   allocated memory size for buffers and strings should be able to be decrement
 *   titles and frames for buffers.
-*   highlight and modify highlighted text
 *   mouse movement
 *   file browser
 *   color syntax
-*   gui <-------- ( ???? )
-*   settings tab ( ?? )
 *   colors can be changed
      (read colors from config to editor structure)
 *   change title when focused?

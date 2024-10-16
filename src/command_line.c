@@ -1,7 +1,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "file_io.h"
+#include "editor.h"
+#include "file.h"
 #include "command_line.h"
 #include "utils.h"
 

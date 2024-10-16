@@ -32,11 +32,11 @@ int setup_buffer(struct buffer_t* buf, int id) {
     buf->file_opened = 0;
     buf->filename_size = 0;
     buf->current = NULL;
-    buf->active = 0;
     buf->max_col = 0;
     buf->max_row = 0;
     buf->x = 0;
     buf->y = 0;
+    buf->content_xoff = 0;
 
     memset(buf->filename, 0, BUFFER_MAX_FILENAME_SIZE);
 
@@ -62,11 +62,11 @@ int setup_buffer(struct buffer_t* buf, int id) {
 
     buf->current = buf->lines[0];
     buf->ready = 1;
-    buf->active = 1;
 
     buf->max_row = 20;
     buf->max_col = 32;
 
+    buffer_update_content_xoff(buf);
 
     ok = 1;
     printf("buffer %i ready. %p\n", buf->id, buf->lines);
@@ -91,13 +91,20 @@ void cleanup_buffer(struct buffer_t* buf) {
         buf->scroll = 0;
         buf->file_opened = 0;
         buf->ready = 0;
-        buf->active = 0;
         buf->cursor_x = 0;
         buf->cursor_y = 0;
         buf->num_used_lines = 0;
         buf->num_alloc_lines = 0;
         buf->id = 0;
         buf->current = NULL;
+    }
+}
+
+void buffer_update_content_xoff(struct buffer_t* buf) {
+    if(buffer_ready(buf)) {
+        char tmpbuf[LINENUM_BUF_SIZE] = {0};
+        buf->content_xoff = snprintf(tmpbuf, LINENUM_BUF_SIZE, 
+                "%li", buf->num_used_lines-1)+2;
     }
 }
 
@@ -123,22 +130,6 @@ void buffer_reset(struct buffer_t* buf) {
         setup_buffer(buf, id);
 
     }
-}
-
-void buffer_set_scroll(struct buffer_t* buf, size_t y) {
-    if(buffer_ready(buf)) {
-        if(buf->num_used_lines < buf->max_row) {
-            return;
-        }
-        buf->scroll = liclamp(y, 
-                0, 
-                buf->num_used_lines);// - BUFFER_SCROLL_LEAVE_VISIBLE);
-    
-    }
-}
-
-void buffer_scroll(struct buffer_t* buf, int offset) {
-    buffer_set_scroll(buf, buf->scroll + offset);
 }
 
 int buffer_clear_all(struct buffer_t* buf) {
@@ -248,17 +239,39 @@ error:
     return res;
 }
 
+void buffer_scroll_to(struct buffer_t* buf, size_t y) {
+    if(buffer_ready(buf)) {
+        if(buf->num_used_lines < buf->max_row) {
+            return;
+        }
+        buf->scroll = liclamp(y, 
+                0, buf->num_used_lines - buf->max_row+5);
+    }
+}
+
+void buffer_scroll(struct buffer_t* buf, int offset) {
+    buffer_scroll_to(buf, buf->scroll + offset);
+}
+
 
 void move_cursor_to(struct buffer_t* buf, size_t col, size_t row) {
     if(!buffer_ready(buf)) { return; }
 
+    if(row > (buf->scroll + buf->max_row)-1) {
+        buffer_scroll(buf, 1);
+    }
+    else if(row < (buf->scroll)) {
+        buffer_scroll(buf, -1);
+    }
+
     if(row < buf->num_used_lines) {
         buf->cursor_y = row;
         buf->current = buf->lines[row];
-
-        buf->cursor_x = (col < buf->current->data_size) 
+        
+        buf->cursor_x = 
+            (col < buf->current->data_size) 
             ? col : buf->current->data_size;
-
+        
     }
 }
 
@@ -287,10 +300,9 @@ size_t buffer_find_last_line(struct buffer_t* buf) {
         for(size_t i = num_used-1; i > 0; i--) {
             const struct string_t* s = buf->lines[i];
             if(!s) {
-                fprintf(stderr, "warning null string at '%li', buffer '%i'\n",
-                        i, buf->id);
                 continue;
             }
+
             if(s->data_size > 0 && s->data) {
                 res = i;
                 break;
@@ -316,7 +328,6 @@ void buffer_shift_data(struct buffer_t* buf, size_t row, int direction) {
     }
 
     if(direction == BUFFER_SHIFT_DOWN) {
-
         for(size_t i = max; i > row; i--) {
             astr = buf->lines[i];
             bstr = buf->lines[i-1];
@@ -325,7 +336,6 @@ void buffer_shift_data(struct buffer_t* buf, size_t row, int direction) {
             }
             string_copy_all(astr, bstr);
         }
-
     }
     else if(direction == BUFFER_SHIFT_UP && row > 0) {
         
@@ -390,6 +400,7 @@ int buffer_add_newline(struct buffer_t* buf, size_t col, size_t row) {
         }
     }
 
+    buffer_update_content_xoff(buf);
     move_cursor_to(buf, num_tabs, buf->cursor_y+1);
     ok = 1;
 
@@ -397,21 +408,45 @@ error:
     return ok;
 }
 
-struct string_t* buffer_get_string(struct buffer_t* buf, size_t index) {
+int buffer_remove_line(struct buffer_t* buf, size_t row) {
+    int ok = 0;
+
+    if(buffer_ready(buf)) {
+        if(row >= buf->num_used_lines) {
+            goto error;
+        }
+
+        struct string_t* str = buffer_get_string(buf, row);
+        if(!str) {
+            goto error;
+        }
+
+        if(string_clear_data(str)) {
+            buffer_shift_data(buf, row+1, BUFFER_SHIFT_UP);
+            buffer_dec_size(buf, 1);
+        
+            ok = 1;
+        }
+    }
+
+error:
+    return ok;
+}
+
+
+struct string_t* buffer_get_string(struct buffer_t* buf, size_t row) {
     struct string_t* str = buf->current;
 
     if(buffer_ready(buf)) {
-        if((index < buf->num_used_lines) 
+        if((row < buf->num_used_lines) 
                 && (buf->num_alloc_lines >= buf->num_used_lines)) {
-            str = buf->lines[index];
+            
+            str = buf->lines[row];
         }
     }
 
     return str;
 }
-
-
-
 
 
 
