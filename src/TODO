@@ -5,8 +5,6 @@
 * [!]  make 'buffer_shift_data' safer!
 * [!]  make sure sure to not make size_t  negative
 
-*   FIX scroll
-*   FIX scale
 *   message type FATAL_ERROR_MSG, halt the program if these happen.
 *   error testing.
 
