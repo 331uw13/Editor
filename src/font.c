@@ -36,7 +36,7 @@ int load_font(const char* file_path, struct font_t* font, const char* vert_shade
     // ok good, now start settings stuff up.
 
 
-    FT_Set_Pixel_Sizes(face, 0, 48);
+    FT_Set_Pixel_Sizes(face, 0, 32);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
     font->max_bitmap_w = 0;
@@ -130,7 +130,7 @@ error_and_done:
     FT_Done_Face(face);
     FT_Done_FreeType(ft);
 
-    font_set_scale(font, 0.4);
+    font_set_scale(font, 0.5);
     res = 1;
 
     font->ready = 1;
@@ -174,8 +174,6 @@ void font_set_scale(struct font_t* font, float scale) {
     font->scale = scale;
     font->char_w = font->max_bitmap_w * scale;
     font->char_h = font->max_bitmap_h * scale;  
-
-    printf("%f\n", scale);
 }
 
 void font_set_color(struct font_t* font, float r, float g, float b) {
@@ -185,14 +183,7 @@ void font_set_color(struct font_t* font, float r, float g, float b) {
 
 void font_set_color_hex(struct font_t* font, unsigned int hex) {
     font_set_color(font, UNHEX(hex));
+    font->color_hex = hex;
 }
-
-
-
-
-
-
-
-
 
 

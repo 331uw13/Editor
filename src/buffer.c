@@ -6,7 +6,7 @@
 #include "buffer.h"
 #include "utils.h"
 
-int setup_buffer(struct buffer_t* buf, int id) {
+int create_buffer(struct buffer_t* buf, int id) {
     int ok = 0;
 
 
@@ -47,7 +47,7 @@ int setup_buffer(struct buffer_t* buf, int id) {
     }
 
     for(size_t i = 0; i < allocated_lines; i++) {
-        if(!(buf->lines[i] = create_string())) {
+        if(!(buf->lines[i] = create_string(0))) {
             fprintf(stderr, "buffer line '%li' is not created going to return 0 at 'setup_buffer'\n", i);
             goto error;
         }
@@ -58,13 +58,16 @@ int setup_buffer(struct buffer_t* buf, int id) {
 
     buf->cursor_x = 0;
     buf->cursor_y = 0;
+    buf->cursor_px = 0;
     buf->scroll = 0;
 
     buf->current = buf->lines[0];
     buf->ready = 1;
 
-    buf->max_row = 20;
-    buf->max_col = 32;
+    buf->max_row = 30;
+    buf->max_col = 42;
+
+    buf->select = (struct select_t) { 0, 0, 0, 0, NULL, NULL };
 
     buffer_update_content_xoff(buf);
 
@@ -75,17 +78,15 @@ error:
     return ok;
 }     
 
-
-
-void cleanup_buffer(struct buffer_t* buf) {
+void delete_buffer(struct buffer_t* buf) {
     if(buf) {
         if(buf->lines) {
             for(size_t i = 0; i < buf->num_alloc_lines; i++) {
-                cleanup_string(&buf->lines[i]);
+                delete_string(&buf->lines[i]);
             }
             free(buf->lines);
             buf->lines = NULL;
-            printf(" freed buffer %i data.\n", buf->id);
+            printf(" deleted buffer %i data.\n", buf->id);
         }
 
         buf->scroll = 0;
@@ -108,6 +109,12 @@ void buffer_update_content_xoff(struct buffer_t* buf) {
     }
 }
 
+void buffer_update_selected(struct buffer_t* buf) {
+    buf->select.x1 = buf->cursor_x;
+    buf->select.y1 = buf->cursor_y;
+    buf->select.end = buffer_get_string(buf, buf->select.y1);
+}
+
 int buffer_ready(struct buffer_t* buf) {
     int res = 0;
     if(buf) {
@@ -126,8 +133,8 @@ void buffer_reset(struct buffer_t* buf) {
 
         int id = buf->id;
 
-        cleanup_buffer(buf);
-        setup_buffer(buf, id);
+        delete_buffer(buf);
+        create_buffer(buf, id);
 
     }
 }
@@ -139,7 +146,7 @@ int buffer_clear_all(struct buffer_t* buf) {
         //       BUFFER_MEMORY_BLOCK amount of lines can stay just make them zero
 
         for(size_t i = 0; i < buf->num_alloc_lines; i++) {
-            cleanup_string(&buf->lines[i]);
+            delete_string(&buf->lines[i]);
         }
         
         free(buf->lines);
@@ -155,13 +162,15 @@ int buffer_clear_all(struct buffer_t* buf) {
         buf->lines = malloc(buf->num_alloc_lines * sizeof **buf->lines);
         if(!buf->lines) {
             buf->num_alloc_lines = 0;
-            fprintf(stderr, "'buffer_clear_all': failed to allocate memory for buffer after free.\n");
+            fprintf(stderr, "'%s': failed to allocate memory for buffer after free.\n",
+                    __func__);
             goto error;
         }
 
         for(size_t i = 0; i < buf->num_alloc_lines; i++) {
-            if(!(buf->lines[i] = create_string())) {
-                fprintf(stderr, "'buffer_clear_all': failed to create string.\n");
+            if(!(buf->lines[i] = create_string(0))) {
+                fprintf(stderr, "'%s': failed to create string.\n",
+                        __func__);
                 goto error;
             }
         }
@@ -193,15 +202,12 @@ int buffer_memcheck(struct buffer_t* buf, size_t n) {
             buf->lines = ptr;
 
             for(size_t i = buf->num_alloc_lines; i < nbsize; i++) {
-                buf->lines[i] = create_string();
+                buf->lines[i] = create_string(0);
             }
 
             buf->num_alloc_lines = nbsize;
 
-        
-#ifdef BUFFER_PRINT_MEMORY_RESIZE
-            printf("\033[32m + resized buffer to hold %li lines.\033[0m\n", buf->num_alloc_lines);
-#endif
+            //printf("\033[32m + resized buffer to hold %li lines.\033[0m\n", buf->num_alloc_lines);
         }
         res = 1;
     }
@@ -254,24 +260,42 @@ void buffer_scroll(struct buffer_t* buf, int offset) {
 }
 
 
-void move_cursor_to(struct buffer_t* buf, size_t col, size_t row) {
+void move_cursor_to(struct buffer_t* buf, long int col, long int row) {
     if(!buffer_ready(buf)) { return; }
 
+    if(row == MOVCUR_KEEP_Y) {
+        row = buf->cursor_y;
+    }
+    if(col == MOVCUR_KEEP_X) {
+        col = buf->cursor_x;
+    }
+
+
     if(row > (buf->scroll + buf->max_row)-1) {
-        buffer_scroll(buf, 1);
+        buffer_scroll_to(buf, (buf->scroll + (row - buf->cursor_y)));
     }
     else if(row < (buf->scroll)) {
-        buffer_scroll(buf, -1);
+        buffer_scroll_to(buf, row);
     }
 
     if(row < buf->num_used_lines) {
+        const long int prev_row = buf->cursor_y;
+
         buf->cursor_y = row;
         buf->current = buf->lines[row];
+
+        if((col == buf->cursor_x)
+                && (prev_row != row) 
+                && (buf->cursor_px != 0)) {
+
+            col = buf->cursor_px;
+        }
         
-        buf->cursor_x = 
-            (col < buf->current->data_size) 
-            ? col : buf->current->data_size;
-        
+        buf->cursor_x = liclamp(col, 0, buf->current->data_size);
+   
+        if(buf->current->data_size > 1) {
+            buf->cursor_px = buf->cursor_x;
+        }
     }
 }
 
@@ -327,33 +351,48 @@ void buffer_shift_data(struct buffer_t* buf, size_t row, int direction) {
         return;
     }
 
-    if(direction == BUFFER_SHIFT_DOWN) {
-        for(size_t i = max; i > row; i--) {
-            astr = buf->lines[i];
-            bstr = buf->lines[i-1];
-            if(!astr || !bstr) { 
-                continue;
-            }
-            string_copy_all(astr, bstr);
-        }
-    }
-    else if(direction == BUFFER_SHIFT_UP && row > 0) {
-        
-        for(size_t i = row-1; i < max; i++) {
+    switch(direction) {
+        case BUFFER_SHIFT_DOWN:
+            {
+                for(size_t i = max; i > row; i--) {
+                    astr = buffer_get_string(buf, i);
+                    bstr = buffer_get_string(buf, i-1);
 
-            astr = buf->lines[i-1];
-            bstr = buf->lines[i];
-      
-            if(astr->data_size > 0) {
-                string_move_data(astr, bstr, astr->data_size, 0, 
-                        bstr->data_size, STRING_ZERO_SRC);
-            }
-            else {
-                string_copy_all(astr, bstr);
-            }
-            string_cut_data(bstr, 0, bstr->data_size);
-        }
+                    if(!astr || !bstr) {
+                        break;
+                    }
 
+                    // copy from bstr to astr.
+                    string_copy_all(astr, bstr);
+                }
+            }
+            break;
+
+        case BUFFER_SHIFT_UP:
+            {
+                if(row == 0) {
+                    return;
+                }
+                for(size_t i = row-1; i < max; i++) {
+                    astr = buffer_get_string(buf, i-1);
+                    bstr = buffer_get_string(buf, i);
+
+                    if(astr->data_size > 0) {
+                        if(!string_move_data(astr, bstr, astr->data_size, 
+                                    0, bstr->data_size, STRING_ZERO_SRC))
+                        {
+                            fprintf(stderr, "WARNING! '%s' string_move_data failed\n",
+                                    __func__);
+                            return;
+                        }
+                    }
+                    else {
+                        string_copy_all(astr, bstr);
+                    }
+                    string_cut_data(bstr, 0, bstr->data_size);
+                }
+            }
+            break;
     }
 }
 
@@ -388,15 +427,20 @@ int buffer_add_newline(struct buffer_t* buf, size_t col, size_t row) {
     buffer_shift_data(buf, row, BUFFER_SHIFT_DOWN);
 
     size_t num_tabs = 0;
-
     if(current->data_size > 0) {
         
         string_cut_data(current, col, current->data_size - col);
         string_cut_data(below, 0, col);
 
-        num_tabs = string_num_chars(current, 0, current->data_size, '\t');
-        for(size_t i = 0; i < num_tabs; i++) {
-            string_add_char(below, '\t', 0);
+        // count tabs until non whitespace character.
+        for(size_t i = 0; i < current->data_size; i++) {
+            char c = current->data[i];
+            if(c != 0x20) {
+                break;
+            }
+
+            num_tabs++;
+            string_add_char(below, 0x20, 0);
         }
     }
 
@@ -435,7 +479,7 @@ error:
 
 
 struct string_t* buffer_get_string(struct buffer_t* buf, size_t row) {
-    struct string_t* str = buf->current;
+    struct string_t* str = NULL;
 
     if(buffer_ready(buf)) {
         if((row < buf->num_used_lines) 

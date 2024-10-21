@@ -19,21 +19,24 @@
 
 
 #define MAX_BUFFERS 4
-//#define LINE_WRAP_WORD_BUFFER_SIZE 64//512
-
 #define ERROR_BUFFER_MAX_SIZE 256
 #define INFO_BUFFER_MAX_SIZE 64
-
-#define EDITOR_X_PADDING 10
-#define EDITOR_Y_PADDING 10
+#define EDITOR_X_PADDING 8
+#define EDITOR_Y_PADDING 8
 #define EDITOR_TEXT_Y_SPACING 1.3 // how much space between lines?
                                   // ^ NOTE: do not set this to 0.
 #define EDITOR_TEXT_X_SPACING 1.0 // how much space between characters?
-
-#define MODE_NORMAL 0
-#define MODE_COMMAND_LINE 1
-
 #define COMMAND_LINE_MAX_SIZE 32
+
+#define PRINTERR(str) \
+    fprintf(stderr, "ERROR: %s '%s()' \033[31m" str "\033[0m\n", __FILE__, __func__)
+
+
+// Modes
+//
+#define MODE_NORMAL 0
+#define MODE_SELECT 1
+#define MODE_COMMAND_LINE 2
 
 struct editor_t {
 
@@ -41,7 +44,7 @@ struct editor_t {
     struct font_t font;
 
     struct buffer_t buffers[MAX_BUFFERS];
-    unsigned int current_buffer;
+    unsigned int current_buf_id;
     unsigned int num_active_buffers;
 
     int mode;
@@ -113,6 +116,4 @@ void cleanup_editor(struct editor_t** e);
 
 
 #endif
-
-
 

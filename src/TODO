@@ -1,29 +1,22 @@
 
 
 
+*   tabs(spaces)  in this kind of shit.
+                -----  it deletes first 4 not first 1 and then 4
 
-* [!]  make 'buffer_shift_data' safer!
-* [!]  make sure sure to not make size_t  negative
 
 *   message type FATAL_ERROR_MSG, halt the program if these happen.
 *   error testing.
-
 *   select text
-* > optimize buffer shift
-*   remember cursor X
 *   verify memchecks are working well.
 *   readonly mode
 *   confirm clearing the buffer if it has data in it
 *   buffer linewrap
-*   delete current line
 *   allocated memory size for buffers and strings should be able to be decrement
 *   titles and frames for buffers.
-*   mouse movement
 *   file browser
 *   color syntax
 *   colors can be changed
      (read colors from config to editor structure)
-*   change title when focused?
-
 
 

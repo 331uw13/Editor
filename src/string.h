@@ -4,7 +4,7 @@
 
 // how many bytes the string data is incremented every time it needs more memory
 // this can be changed to optimize memory usage
-#define STRING_MEMORY_BLOCK_SIZE 16
+#define STRING_MEMORY_BLOCK_SIZE 32
 #define STRING_MAX_SIZE 0xf4240
 
 
@@ -16,11 +16,12 @@ struct string_t {
 
 
 
-struct string_t* create_string();
-void             cleanup_string(struct string_t** str); 
+// 'init_size' can be zero, it will be allocated STRING_MEMORY_BLOCK_SIZE bytes.
+struct string_t* create_string(size_t init_size);
+void             delete_string(struct string_t** str); 
 
-// returns 1 if the string is ready for data manipulation, otherwise 0.
-int              string_ready(struct string_t* str);
+// returns 1 if the string is ready for data manipulation or reading, otherwise zero.
+int     string_ready(struct string_t* str);
 
 // check if string needs more memory.
 //   returns 1 if no more memory is needed or memory is resized.
@@ -45,14 +46,18 @@ int     string_cut_data(struct string_t* str, size_t offset, size_t size);
 int     string_set_data(struct string_t* str, char* data, size_t size);
 size_t  string_num_chars(struct string_t* str, size_t start, size_t end, char c);
 int     string_clear_data(struct string_t* str);
+size_t  string_count_begin_tabs(struct string_t* str);
 
-// direction for string_find_char.
+// 'where_to_stop' for string_count_whitespace
+#define STR_STOP_AT_NONWS 0 // stop counting on first non whitespace character?
+#define STR_COUNT_ALL_WS 1  // dont stop until str->data_size is reached.
+size_t  string_count_whitespace(struct string_t* str, int where_to_stop);
+
+// 'direction' for string_find_char.
 #define STRFIND_NEXT 0
 #define STRFIND_PREV 1
 // if 'c' is found returns length from 'start_index' to found character.
 // returns 0 if not found.
 size_t string_find_char(struct string_t* str, size_t start_index, char c, int direction);
-
-
 
 #endif

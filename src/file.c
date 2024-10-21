@@ -7,10 +7,9 @@
 #include <string.h>
 #include <time.h>
 
-
-
 #include "file.h"
 #include "editor.h"
+#include "utils.h"
 
 
 
@@ -20,29 +19,28 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
     if(ed) {
 
         if(!filename) {
-            fprintf(stderr, "'read_file': filename is NULL!\n");
+            PRINTERR("filename is NULL!");
             goto error;
         }
 
         if(filename_size == 0) {
-            fprintf(stderr, "'read_file': filename_size cant be 0\n");
-            goto error;
+            filename_size = strlen(filename);
         }
 
         if(filename_size >= BUFFER_MAX_FILENAME_SIZE) {
-            write_message(ed, ERROR_MSG, "Filename size is too big.\0");
+            PRINTERR("filename size is too big");
             goto error;
         }
 
-        if(buf_id > MAX_BUFFERS) {
-            fprintf(stderr, "'read_file': invalid buffer id.\n");
+        if(buf_id >= MAX_BUFFERS) {
+            PRINTERR("invalid buffer id");
             goto error;
         }
 
         struct buffer_t* buf = &ed->buffers[buf_id];
 
         if(!buf) {
-            fprintf(stderr, "'read_file': failed to get pointer to buffer.\n");
+            PRINTERR("buffer is NULL");
             goto error;
         }
 
@@ -53,6 +51,7 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
 
         if(access(filename, F_OK)) {
             write_message(ed, ERROR_MSG, "File doesnt exist '%s'.\0", filename);
+            PRINTERR("failed to access file");
             goto error;
         }
 
@@ -118,11 +117,13 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
         // count bytes until newline character is found, 
         // then copy from ptr + offset to current string.
 
+
         for(size_t i = 0; i < sb.st_size; i++) {
             if(!str) {
                 break;
             }
             char c = ptr[i];
+            
             int eof = (i+1 == sb.st_size);
             total_bytes_read++;
             bytes++;
@@ -141,7 +142,7 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
                 }
 
                 if(!buffer_inc_size(buf, 1)) {
-                    fprintf(stderr, "'open_file': cant resize buffer?\n");
+                    PRINTERR("cant resize buffer?");
                     goto error_and_close;
                 }
 
@@ -150,11 +151,36 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
                 y++;
                 
                 if(y >= buf->num_alloc_lines) {
-                    fprintf(stderr, "'open_file': y is going out of bounds.\n");
+                    PRINTERR("y is going out of bounds");
                     goto error_and_close;
                 }
                 
-                str = buf->lines[y];
+                str = buffer_get_string(buf, y);//buf->lines[y];
+                if(!str) {
+                    PRINTERR("buffer line is NULL");
+                    goto error_and_close;
+                }
+            }
+        }
+
+        // replace tab characters with spaces.
+        // TODO: this is probably not the best idea for everything..
+
+        for(size_t i = 0; i < buf->num_used_lines; i++) {
+            str = buffer_get_string(buf, i);
+            if(!str) {
+                continue;
+            }
+
+            for(size_t j = 0; j < str->data_size; j++) {
+                char c = str->data[j];
+                if(c == '\t') {
+                    str->data[j] = 0x20;
+
+                    for(int k = 0; k < FONT_TAB_WIDTH-1; k++) {
+                        string_add_char(str, 0x20, j);
+                    }
+                }
             }
         }
 
@@ -195,7 +221,8 @@ size_t write_file(struct editor_t* ed, unsigned int buf_id) {
 
     struct buffer_t* buf = &ed->buffers[buf_id];
     if(!buf) {
-        fprintf(stderr, "'write_file': failed to get pointer to buffer.\n");
+        fprintf(stderr, "'%s': failed to get pointer to buffer.\n",
+                __func__);
         goto error;
     }
 
@@ -207,8 +234,6 @@ size_t write_file(struct editor_t* ed, unsigned int buf_id) {
     }
 
     // TODO: save a backup file before opening the file with O_TRUNC
-
-    printf("opening '%s'\n", buf->filename);
 
     int fd = open(buf->filename, O_WRONLY | O_APPEND | O_TRUNC);
     if(fd == EACCES) {
@@ -224,19 +249,15 @@ size_t write_file(struct editor_t* ed, unsigned int buf_id) {
 
     struct string_t* str = NULL;
 
-
     for(size_t i = 0; i < buf->num_used_lines; i++) {
-        str = buf->lines[i];
+        str = buffer_get_string(buf, i);
         if(!str) {
             continue;
         }
-
         if(string_ready(str)) {
             bytes_written += write(fd, str->data, str->data_size);
             bytes_written += write(fd, "\n", 1);
         }
-
-
     }
 
     close(fd);

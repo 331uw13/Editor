@@ -70,7 +70,6 @@ void  draw_data_wrapped(struct editor_t* ed,
             int max_x,
             int use_grid);
 
-void draw_cursor(struct editor_t* ed, struct buffer_t* buf);
 void draw_buffer(struct editor_t* ed, struct buffer_t* buf, 
         char* linenum_buf, int xdrw_off);
 

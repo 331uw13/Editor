@@ -17,11 +17,12 @@ void run_loop(struct editor_t* ed) {
 
     read_file(ed, 0, "testf.txt", 9);
 
+
     while(!glfwWindowShouldClose(ed->win)) {
         glClear(GL_COLOR_BUFFER_BIT);
         glfwGetCursorPos(ed->win, &ed->mouse_x, &ed->mouse_y);
 
-        struct buffer_t* buf = &ed->buffers[ed->current_buffer];
+        struct buffer_t* buf = &ed->buffers[ed->current_buf_id];
 
         if(ed->mouse_button) {
             buf->x = loc_to_col(ed, ed->mouse_x);
@@ -31,19 +32,14 @@ void run_loop(struct editor_t* ed) {
 
         draw_buffers(ed);
 
-
         if(ed->mode == MODE_COMMAND_LINE) {
             set_color_hex(ed, 0x231100);
-
-            //draw_framed_rect(ed, 0, 0, ed->max_column, 1, 0x554510, 1.0, MAP_XYWH, DRW_ONGRID);
-
             draw_framed_rect(ed, 
                     5, 3,
                     ed->window_width-10, ed->font.char_h+8,
                     0x554510,
                     1.0,
                     MAP_XYWH, DRW_NO_GRID);
-            //draw_rect(ed, 5, ed->font.char_h+9, ed->window_width-10, ed->font.char_h*2+9, MAP_XYWH);
             
             font_set_color_hex(&ed->font, 0x773310);
             draw_char(ed, 10, 6, '>', DRW_NO_GRID);
@@ -62,7 +58,6 @@ void run_loop(struct editor_t* ed) {
             font_set_color_hex(&ed->font, 0xAA6633);
             draw_data(ed, ed->font.char_w+10, 6, 
                     ed->cmd_str->data, ed->cmd_str->data_size, DRW_NO_GRID);
-
         }
 
 

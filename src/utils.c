@@ -1,3 +1,5 @@
+#include <math.h>
+
 #include "utils.h"
 #include "editor.h"
 
@@ -42,3 +44,22 @@ unsigned long djb2_hash(char* str) {
 int char_ok(char c) {
     return (c < 0x1F) ? 0 : (c > 0x7F) ? 0 : 1;
 }
+
+int is_on_end_of_tab(long int x) {
+    int res = 0;
+
+    /*
+       (1-4) = "tab width".
+       0123456789
+       .    .....  <- x=5  return 1
+       .     ....  <- x=6  return 0
+
+       */
+
+    if(x > 0) {
+        res = (x == round(x / FONT_TAB_WIDTH) * FONT_TAB_WIDTH);
+    }
+
+    return res;
+}
+

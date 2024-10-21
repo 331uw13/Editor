@@ -1,14 +1,16 @@
 #include <GLFW/glfw3.h>
 #include <stdio.h>
+#include <math.h>
 
 #include "editor.h"
 #include "command_line.h"
 #include "file.h"
 #include "utils.h"
 
+#include "config.h"
 
 
-static void _handle_enter_key_on_buffer(struct editor_t* ed, struct buffer_t* buf) {
+static void handle_enter_key_on_buffer(struct editor_t* ed, struct buffer_t* buf) {
     if(buffer_add_newline(buf, buf->cursor_x, buf->cursor_y)) {
         if(buf->cursor_y > (buf->scroll + ed->max_row)) {
             buffer_scroll(buf, -1);
@@ -16,11 +18,23 @@ static void _handle_enter_key_on_buffer(struct editor_t* ed, struct buffer_t* bu
     }
 }
 
-static void _handle_backspace_key_on_buffer(struct editor_t* ed, struct buffer_t* buf) {
+static void handle_backspace_key_on_buffer(struct editor_t* ed, struct buffer_t* buf) {
     if(buf->cursor_x > 0) {
-        if(string_rem_char(buf->current, buf->cursor_x)) {
+
+
+        size_t idx = (buf->cursor_x <= FONT_TAB_WIDTH) ? 0 : (buf->cursor_x - FONT_TAB_WIDTH);
+        size_t num_spaces = string_num_chars(buf->current, idx, buf->cursor_x, 0x20);
+
+        if(num_spaces == FONT_TAB_WIDTH && is_on_end_of_tab(buf->cursor_x)) {
+            string_cut_data(buf->current, idx, num_spaces);
+            move_cursor(buf, -FONT_TAB_WIDTH, 0);
+        }
+        else {
+            string_rem_char(buf->current, buf->cursor_x);
             move_cursor(buf, -1, 0);
         }
+    
+
     }
     else if(buf->cursor_y > 0) {
         struct string_t* ln = buffer_get_string(buf, buf->cursor_y-1);
@@ -37,18 +51,20 @@ static void _handle_backspace_key_on_buffer(struct editor_t* ed, struct buffer_t
 }
 
 
-static void _key_mod_input_CTRL(struct editor_t* ed, struct buffer_t* buf, int key) {
+#define ONLY_NORMAL_MODE if(ed->mode != MODE_NORMAL) { return; }
+
+static void _key_mod_input_CONTROL(struct editor_t* ed, struct buffer_t* buf, int key) {
+
+    ONLY_NORMAL_MODE;
 
     switch(key) {
             // goto end of the line.
         case GLFW_KEY_D: 
-            if(ed->mode != MODE_NORMAL) { return; }
             move_cursor_to(buf, buf->current->data_size, buf->cursor_y);
             break;
         
             // goto middle of the line.
         case GLFW_KEY_S:
-            if(ed->mode != MODE_NORMAL) { return; }
             if(buf->current->data_size > 1) {
                 move_cursor_to(buf, buf->current->data_size/2, buf->cursor_y);
             }
@@ -56,31 +72,29 @@ static void _key_mod_input_CTRL(struct editor_t* ed, struct buffer_t* buf, int k
 
             // goto start of the line.
         case GLFW_KEY_A: 
-            if(ed->mode != MODE_NORMAL) { return; }
             move_cursor_to(buf, 0, buf->cursor_y);
             break;
 
+
         case GLFW_KEY_W:
-            if(ed->mode != MODE_NORMAL) { return; }
             write_file(ed, buf->id);
             break;
 
         case GLFW_KEY_P:
-            ed->mode = (ed->mode == MODE_NORMAL) ? MODE_COMMAND_LINE : MODE_NORMAL;
+            ed->mode = MODE_COMMAND_LINE;
             break;
 
-        case GLFW_KEY_MINUS:
-            font_set_scale(&ed->font, ed->font.scale + 0.1);
+        case GLFW_KEY_2:
+            font_set_scale(&ed->font, ed->font.scale + 0.05);
             break;
 
-        case GLFW_KEY_0:
-            font_set_scale(&ed->font, ed->font.scale - 0.1);
+        case GLFW_KEY_1:
+            font_set_scale(&ed->font, ed->font.scale - 0.05);
             break;
 
         case GLFW_KEY_X:
             clear_error_buffer(ed);
             break;
-
 
         case GLFW_KEY_E:
             if(buffer_remove_line(buf, buf->cursor_y)) {
@@ -88,21 +102,144 @@ static void _key_mod_input_CTRL(struct editor_t* ed, struct buffer_t* buf, int k
             }
             break;
 
+        
         case GLFW_KEY_RIGHT:
-            move_cursor(buf, string_find_char(buf->current,
-                        buf->cursor_x, 0x20, STRFIND_NEXT) + 1, 0);
+            move_cursor(buf, 4, 0);
+            break;
+        
+        case GLFW_KEY_LEFT:
+            move_cursor(buf, -4, 0);
             break;
 
-        case GLFW_KEY_LEFT:
-            move_cursor(buf, -string_find_char(buf->current,
-                        buf->cursor_x, 0x20, STRFIND_PREV) - 1, 0);
+        case GLFW_KEY_UP:
+            move_cursor(buf, 0, -4);
+            break;
+        
+        case GLFW_KEY_DOWN:
+            move_cursor(buf, 0, 4);
             break;
 
 
         default:break;
     }
+    // -- CONTROL
 }
 
+
+static void _key_mod_input_ALT(struct editor_t* ed, struct buffer_t* buf, int key) {
+    switch(key) {
+
+        case GLFW_KEY_UP:
+            ONLY_NORMAL_MODE;
+            move_cursor_to(buf, 0, 0);
+            break;
+        
+        case GLFW_KEY_DOWN: 
+            ONLY_NORMAL_MODE;
+            move_cursor_to(buf, 0, buf->num_used_lines-1);
+            break;
+
+        case GLFW_KEY_S:
+            {
+                if(!string_ready(buf->current)) {
+                    return;
+                }
+                buf->select = (struct select_t) {
+                    buf->cursor_x, buf->cursor_y, // begin position
+                    buf->cursor_x, buf->cursor_y, // end position
+                    buf->current, // begin string
+                    buf->current, // end string
+                };
+                
+                ed->mode = (ed->mode == MODE_SELECT) ? MODE_NORMAL : MODE_SELECT;
+            }
+            break;
+
+        default:break;
+    }
+    // -- ALT
+}
+
+static void _key_mod_input_SHIFT(struct editor_t* ed, struct buffer_t* buf, int key) {
+    
+    ONLY_NORMAL_MODE;
+
+    switch(key) {
+
+        /*
+        // skip by 1 word (right)
+        //
+        case GLFW_KEY_RIGHT:
+            move_cursor(buf, string_find_char(buf->current,
+                        buf->cursor_x, 0x20, STRFIND_NEXT) + 1, 0);
+            break;
+
+            
+        // skip by 1 word (left)
+        //
+        case GLFW_KEY_LEFT:
+            { // dont want to go to 0 X position 
+              // if the start of the line only contains spaces.
+              //
+                long int dist = string_find_char(
+                        buf->current, buf->cursor_x, 0x20, STRFIND_PREV) + 1;
+                long int pos = buf->cursor_x - dist;
+
+                if(pos == 0) {
+                    for(size_t i = 0; i < buf->current->data_size; i++) {
+                        if(buf->current->data[i] != 0x20) {
+                            pos = i;
+                            break;
+                        }
+                    }
+                }
+
+                move_cursor_to(buf, pos, MOVCUR_KEEP_Y);
+            }
+            break;
+            */
+
+        /*
+        // find non white space. up/down
+        //
+        case GLFW_KEY_UP:
+            {
+                if(buf->cursor_y <= 0) { return; }
+                struct string_t* str = NULL;
+                for(size_t i = buf->cursor_y-1; i > 0; i--) {
+                    str = buffer_get_string(buf, i);
+                    if(!str) {
+                        break;
+                    }
+                    if(!string_is_whitespace(str) || (i-1 == 0)) {
+                        move_cursor_to(buf, MOVCUR_KEEP_X, i);
+                        break;
+                    }
+                }
+            }
+            break;
+
+        case GLFW_KEY_DOWN:
+            {
+                if(buf->cursor_y >= buf->num_used_lines) { return; }
+                struct string_t* str = NULL;
+                for(size_t i = buf->cursor_y+1; i < buf->num_used_lines; i++) {
+                    str = buffer_get_string(buf, i);
+                    if(!str) {
+                        break;
+                    }
+                    if(!string_is_whitespace(str) || (i+1 == buf->num_used_lines)) {
+                        move_cursor_to(buf, MOVCUR_KEEP_X, i);
+                        break;
+                    }
+                }
+            }
+            break;
+
+            */
+    }
+    // -- SHIFT
+}
 
 void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int mods) {
     struct editor_t* ed = glfwGetWindowUserPointer(win);
@@ -110,14 +247,24 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
     if(action == GLFW_RELEASE) { return; }
     if(!ed) { return; }
 
-    struct buffer_t* buf = &ed->buffers[ed->current_buffer];
+    struct buffer_t* buf = &ed->buffers[ed->current_buf_id];
     clear_info_buffer(ed);
 
 
     if(mods) {
 
-        if(mods == GLFW_MOD_CONTROL) {
-            _key_mod_input_CTRL(ed, buf, key);
+        switch(mods) {
+            case GLFW_MOD_SHIFT:
+                _key_mod_input_SHIFT(ed, buf, key);
+                break;
+            
+            case GLFW_MOD_ALT:
+                _key_mod_input_ALT(ed, buf, key);
+                break;
+            
+            case GLFW_MOD_CONTROL:
+                _key_mod_input_CONTROL(ed, buf, key);
+                break;
         }
 
         return;
@@ -148,17 +295,23 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
 
 
                     case GLFW_KEY_ENTER:
-                        _handle_enter_key_on_buffer(ed, buf);
+                        handle_enter_key_on_buffer(ed, buf);
                         break;
 
                     case GLFW_KEY_BACKSPACE:
-                        _handle_backspace_key_on_buffer(ed, buf);
+                        handle_backspace_key_on_buffer(ed, buf);
                         break;
 
                     case GLFW_KEY_TAB:
+                        for(int i = 0; i < FONT_TAB_WIDTH; i++) {
+                            string_add_char(buf->current, 0x20, buf->cursor_x);
+                        }
+                        move_cursor(buf, FONT_TAB_WIDTH, 0);
+                        /*
                         if(string_add_char(buf->current, '\t', buf->cursor_x)) {
                             move_cursor(buf, 1, 0);
                         }
+                        */
                         break;
 
                     case GLFW_KEY_DELETE:
@@ -168,11 +321,49 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
                 }
             }
             break;
-    
-        case MODE_COMMAND_LINE:
+   
+        case MODE_SELECT:
             {
                 switch(key) {
                     
+                    case GLFW_KEY_ESCAPE:
+                        ed->mode = MODE_NORMAL;
+                        break;
+
+
+                    case GLFW_KEY_LEFT:
+                        move_cursor(buf, -1, 0);
+                        buffer_update_selected(buf);
+                        break;
+
+                    case GLFW_KEY_RIGHT:
+                        move_cursor(buf, 1, 0);
+                        buffer_update_selected(buf);
+                        break;
+
+                    case GLFW_KEY_DOWN:
+                        move_cursor(buf, 0, 1);
+                        buffer_update_selected(buf);
+                        break;
+
+                    case GLFW_KEY_UP:
+                        move_cursor(buf, 0, -1);
+                        buffer_update_selected(buf);
+                        break;
+
+
+                }
+            }
+            break;
+
+        case MODE_COMMAND_LINE:
+            {
+                switch(key) {
+ 
+                    case GLFW_KEY_ESCAPE:
+                        ed->mode = MODE_NORMAL;
+                        break;
+  
                     case GLFW_KEY_LEFT:
                         if(ed->cmd_cursor > 0) {
                             ed->cmd_cursor--;
@@ -187,10 +378,6 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
 
                     case GLFW_KEY_ENTER:
                         execute_cmd(ed, ed->cmd_str);
-                        break;
-
-                    case GLFW_KEY_ESCAPE:
-                        ed->mode = MODE_NORMAL;
                         break;
 
                     case GLFW_KEY_BACKSPACE:
@@ -223,7 +410,7 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
 
         case MODE_NORMAL:
             {
-                struct buffer_t* buf = &ed->buffers[ed->current_buffer];
+                struct buffer_t* buf = &ed->buffers[ed->current_buf_id];
                 if(!buffer_ready(buf)) {
                     return;
                 }
@@ -250,7 +437,7 @@ void scroll_input_handler(GLFWwindow* win, double xoff, double yoff) {
     struct editor_t* ed = glfwGetWindowUserPointer(win);
     if(!ed) { return; }
 
-    struct buffer_t* buf = &ed->buffers[ed->current_buffer];
+    struct buffer_t* buf = &ed->buffers[ed->current_buf_id];
     int iyoff = (int)-yoff;
     
     buffer_scroll(buf, iyoff);

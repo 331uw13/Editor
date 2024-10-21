@@ -6,7 +6,7 @@
 
 
 
-struct string_t* create_string() {
+struct string_t* create_string(size_t init_size) {
     struct string_t* s = NULL;
 
     s = malloc(sizeof *s);
@@ -19,21 +19,23 @@ struct string_t* create_string() {
     s->data_size = 0;
     s->data = NULL;
 
-    s->data = malloc(STRING_MEMORY_BLOCK_SIZE);
+    size_t mem_size = (init_size == 0) ? STRING_MEMORY_BLOCK_SIZE : init_size; 
+
+    s->data = malloc(mem_size);
     if(!s->data) {
         fprintf(stderr, "failed to allocate memory for string data.\n");
         free(s);
         s = NULL;
     }
 
-    s->mem_size = STRING_MEMORY_BLOCK_SIZE;
+    s->mem_size = mem_size;
 
 error:
     return s;
 }
 
 
-void cleanup_string(struct string_t** str) {
+void delete_string(struct string_t** str) {
     if(*str) {
         if((*str)->data) {
             free((*str)->data);
@@ -172,9 +174,6 @@ int string_move_data(struct string_t* dst_str, struct string_t* src_str,
         if(!string_memcheck(dst_str, new_dst_size)) {
             goto error;
         }
-        
-
-
 
         if(!(flags & STRING_OVERWRITE_DATA) 
                 && dst_offset < dst_str->data_size) {
@@ -185,13 +184,11 @@ int string_move_data(struct string_t* dst_str, struct string_t* src_str,
                     dst_str->data + dst_offset,
                     dst_str->data_size - dst_offset
                     );
-
         }
 
         memmove(dst_str->data + dst_offset,
                 src_str->data + src_offset,
                 size);
-
 
         dst_str->data_size = new_dst_size;
 
@@ -199,6 +196,7 @@ int string_move_data(struct string_t* dst_str, struct string_t* src_str,
             memset(src_str->data, 0, src_str->data_size);
             src_str->data_size = 0;
         }
+        ok = 1;
     }
 
 error:
@@ -219,10 +217,7 @@ int string_copy_all(struct string_t* dst_str, struct string_t* src_str) {
         
             ok = 1;
         }
-
     }
-
-
     return ok;
 }
 
@@ -273,9 +268,25 @@ size_t string_num_chars(struct string_t* str, size_t start, size_t end, char c) 
             }
         }
     }
-
     return num;
 }
+
+int string_is_whitespace(struct string_t* str) {
+    int res = 1;
+
+    if(string_ready(str)) {
+        for(size_t i = 0; i < str->data_size; i++) {
+            char c = str->data[i];
+            if((c != 0x20) && (c != 0x9)) {
+                res = 0;
+                break;
+            }
+        }
+    }
+
+    return res;
+}
+
 
 int string_clear_data(struct string_t* str) {
     int ok = 0;
@@ -291,12 +302,19 @@ int string_clear_data(struct string_t* str) {
 int string_set_data(struct string_t* str, char* data, size_t size) {
     int ok = 0;
 
-    if(string_ready(str) && data && size > 0) {
+    if(string_ready(str) && data && (size > 0)) {
         memmove(str->data, data, size);
+        ok = 1;
     }
 
-
     return ok;
+}
+
+size_t string_count_whitespace(struct string_t* str, int where_to_stop) {
+    size_t count = 0;
+ 
+
+    return count;
 }
 
 
@@ -333,6 +351,4 @@ size_t string_find_char(struct string_t* str, size_t start_index, char c, int di
 
     return len;
 }
-
-
 

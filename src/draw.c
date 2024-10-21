@@ -4,7 +4,7 @@
 #include "editor.h"
 #include "draw.h"
 #include "utils.h"
-
+#include <math.h>
 
 static void to_grid_coords(struct editor_t* ed,
         float* x, float* y,
@@ -82,6 +82,7 @@ void draw_framed_rect(struct editor_t* ed,
     if(use_grid) {
         to_grid_coords(ed, &x, &y, &w, &h);
         use_grid = 0;
+
     }
 
     if(fthickness > 0.9f) {
@@ -212,21 +213,32 @@ static void _draw_data_r(
 
 
     for(long int i = 0; i < size; i++) {
+        int old_color = -1;
         char c = data[i];
 
         switch(c) {
+            
+            case 0:
+                return;
+            
             case 0x9:
                 x += xinc * FONT_TAB_WIDTH;
                 continue;
 
-            case 0:
-                return;
+            case 0xA:
+                continue;
 
             default:
                 if(!char_ok(c)) {
-                    continue;
+                    //printf("unknown character: 0x%x/'%c'\n", c, c);
+                    old_color = ed->font.color_hex;
+                    c = '?';
                 }
                 break;
+        }
+
+        if(old_color > 0) {
+            font_set_color_hex(&ed->font, 0xFF3020);
         }
 
         draw_char(ed, x, y, c, use_grid);
@@ -235,6 +247,10 @@ static void _draw_data_r(
         if(use_wrapping && (x >= max_x)) {
             x = xorigin;
             y += yinc;
+        }
+
+        if(old_color > 0) {
+            font_set_color_hex(&ed->font, old_color);
         }
     }
 }
@@ -252,7 +268,7 @@ void draw_data_wrapped(struct editor_t* ed,
     _draw_data_r(ed, x, y, data, size, use_grid, 1, max_x);
 }
 
-static void _draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf) {
+static void draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf) {
     
     const unsigned int 
         frame_color = 0x00AAEE;
@@ -260,20 +276,32 @@ static void _draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf) {
     const unsigned int 
         frame_name_color = 0x00AAAA;
 
+    const float fthickness = 2.0;
+
+    float x = (float)buf->x;
+    float y = (float)buf->y;
+    float w = (float)buf->max_col;
+    float h = 1.0;//(float)buf->max_row;
+
+    // umm i dont know yet why to_grid_coords messes up the height
+    // this is fine.. for now.
+    to_grid_coords(ed, &x, &y, &w, &h);
+    h = (buf->max_row+1) * ed->font.char_h * EDITOR_TEXT_Y_SPACING;
+    h += fthickness;
 
     int has_file = buf->file_opened && (buf->filename_size > 0);
 
 
-    set_color_hex(ed, 0x101010);
+    set_color_hex(ed, 0x101111);
     draw_framed_rect(ed, 
-            buf->x, buf->y,
-            buf->max_col, buf->max_row+1,
-            frame_color, 2.0,
-            MAP_XYWH, DRW_ONGRID);
+            x, y,
+            w, h,
+            frame_color, fthickness,
+            MAP_XYWH, DRW_NO_GRID);
 
 
     // filename stuff
-    
+   
     set_color_hex(ed, 0x181818);
     
     draw_rect(ed,
@@ -291,11 +319,21 @@ static void _draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf) {
                 DRW_ONGRID);
     }
 
+    // select?
+
+    if(ed->mode == MODE_SELECT) {
+        font_set_color_hex(&ed->font, 0xcf72d6);
+        draw_data(ed,
+                buf->x + buf->max_col - 6,
+                buf->y + buf->max_row,
+                "[select]\0", -1,
+                DRW_ONGRID);
+    }
+
 }
 
 
-
-void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
+static void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
     if(!buffer_ready(buf)) {
         return;
     }
@@ -365,21 +403,22 @@ void draw_buffer(struct editor_t* ed, struct buffer_t* buf, char* linenum_buf, i
         }
 
         line = buf->lines[i];
-        if(!line) {
+        if(!string_ready(line)) {
             continue;
         }
 
         const int y = i + ydrw_off - buf->scroll;
         const int line_num_len = snprintf(linenum_buf, LINENUM_BUF_SIZE, "%li", i);
 
-
+        // data
+        //
         font_set_color_hex(&ed->font, 0xFFEEAA);
         draw_data(ed, xdrw_off, y, line->data, line->data_size, DRW_ONGRID);
        
         
         
-        // line number stuff
-
+        // line numbers
+        //
         font_set_color_hex(
                 &ed->font,
                 (i == buf->cursor_y) ? 0x406040 : 0x252525);
@@ -392,7 +431,29 @@ void draw_buffer(struct editor_t* ed, struct buffer_t* buf, char* linenum_buf, i
         
         font_set_color_hex(&ed->font, 0x504030);
         draw_char(ed, xdrw_off - 1, y, '|', 1);
+    
+
     }
+}
+
+static void draw_selected(struct editor_t* ed, struct buffer_t* buf) {
+
+    if((ed->mode != MODE_SELECT) || (buf->id != ed->current_buf_id)) {
+        return;
+    }
+
+    // drawing coordinates
+    //
+    const int dx0 = buf->select.x0 + buf->content_xoff;
+
+    set_color_hex(ed, 0x653575);
+    draw_rect(ed,
+            buf->select.x0 + buf->content_xoff,
+            buf->select.y0,
+            1,
+            1,
+            MAP_XYWH, DRW_ONGRID);
+
 }
 
 
@@ -411,12 +472,10 @@ void draw_buffers(struct editor_t* ed) {
 
     const int xdrw_off = buf->content_xoff;
 
-    // need to draw buffer frames first 
-    // or the cursor will be render under them.
-    _draw_buffer_frame(ed, buf);
-    
-    draw_cursor(ed, buf);
-    draw_buffer(ed, buf, linenum_buf, xdrw_off);
+    draw_buffer_frame  (ed, buf);
+    draw_selected      (ed, buf);
+    draw_cursor        (ed, buf);
+    draw_buffer        (ed, buf, linenum_buf, xdrw_off);
 }
 
 

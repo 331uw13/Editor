@@ -60,11 +60,11 @@ void execute_cmd(struct editor_t* ed, struct string_t* str) {
                     write_message(ed, ERROR_MSG, "Usage: open <filename>\0");
                     goto done;
                 }
-                read_file(ed, ed->current_buffer, args[1], strlen(args[1]));
+                read_file(ed, ed->current_buf_id, args[1], strlen(args[1]));
                 break;
 
             case CMD_WRITE:
-                write_file(ed, ed->current_buffer);
+                write_file(ed, ed->current_buf_id);
                 break;
 
 

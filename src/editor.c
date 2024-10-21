@@ -37,11 +37,11 @@ void do_safety_check(struct editor_t* ed) {
         return;
     }
 
-    if(ed->current_buffer > MAX_BUFFERS) {
-        ed->current_buffer = MAX_BUFFERS;  
+    if(ed->current_buf_id > MAX_BUFFERS) {
+        ed->current_buf_id = MAX_BUFFERS;  
     }
 
-    struct buffer_t* buf = &ed->buffers[ed->current_buffer];
+    struct buffer_t* buf = &ed->buffers[ed->current_buf_id];
     
 
     // TODO: halt program and draw fatal error messages on screen
@@ -289,35 +289,35 @@ void draw_info_buffer(struct editor_t* ed) {
     if(ed->info_buf_size == 0) {
         return;
     }
-/*
-    float x = 0;
-    float y = ed->window_height - ed->font.char_h-2;
-    float w = ed->window_width;
-    float h = ed->font.char_h;
+
+    const float x = 0;
+    const float y = ed->window_height - ed->font.char_h-2;
+    const float w = ed->window_width;
+    const float h = ed->font.char_h;
 
     set_color_hex(ed, 0x051212);
     draw_framed_rect(ed,
-            x, y-8, w, h+9,
-            0x052030, 2.0, MAP_XYWH);
+            x, y,
+            w, h,
+            0x052030, 2.0, 
+            MAP_XYWH, DRW_NO_GRID);
 
-    font_set_color_hex(&ed->font, 0x104060);
-    draw_char(ed, x+10, y-5, '>', DRW_NO_GRID);
+
+    font_set_color_hex(&ed->font, 0x104050);
+    draw_char(ed, x+10, y, '>', DRW_NO_GRID);
     
     font_set_color_hex(&ed->font, 0x109090);
-    draw_data(ed, x+ed->font.char_w+20, y-5, ed->info_buf, ed->info_buf_size, DRW_NO_GRID);
-
-*/
+    draw_data(ed, x+ed->font.char_w+20, y, ed->info_buf, ed->info_buf_size, DRW_NO_GRID);
 }
 
 
-
-int setup_buffers(struct editor_t* ed) {
+int create_buffers(struct editor_t* ed) {
     int ok = 0;
 
     for(int i = 0; i < MAX_BUFFERS; i++) {
         struct buffer_t* buf = &ed->buffers[i];
         if(buf) {
-            if(!setup_buffer(buf, i)) {
+            if(!create_buffer(buf, i)) {
                 fprintf(stderr, "buffer '%i' failed to initialize.\n", i);
                 goto error;
             }
@@ -350,7 +350,7 @@ struct editor_t* init_editor(const char* fontfile,
     ed->win = NULL;
     ed->window_width = 0;
     ed->window_height = 0;
-    ed->current_buffer = 0;
+    ed->current_buf_id = 0;
     ed->max_row = 0;
     ed->max_column = 0;
     ed->num_active_buffers = 1;
@@ -446,10 +446,10 @@ struct editor_t* init_editor(const char* fontfile,
 
     memset(ed->error_buf, 0, ERROR_BUFFER_MAX_SIZE);
     memset(ed->info_buf, 0, INFO_BUFFER_MAX_SIZE);
-    if(!setup_buffers(ed)) {
+    if(!create_buffers(ed)) {
         goto giveup;
     }
-    ed->cmd_str = create_string();
+    ed->cmd_str = create_string(COMMAND_LINE_MAX_SIZE);
 
     //  -- ready.
     ed->mode = MODE_NORMAL;
@@ -464,7 +464,7 @@ void cleanup_editor(struct editor_t** e) {
     if((*e)) {
         printf("cleanup.\n");
         for(int i = 0; i < MAX_BUFFERS; i++) {
-            cleanup_buffer(&(*e)->buffers[i]);
+            delete_buffer(&(*e)->buffers[i]);
         }
         
         if((*e)->win) {
@@ -487,7 +487,7 @@ void cleanup_editor(struct editor_t** e) {
         }
 
         unload_font(&(*e)->font);
-        cleanup_string(&(*e)->cmd_str);
+        delete_string(&(*e)->cmd_str);
 
         (*e)->ready = 0;
 

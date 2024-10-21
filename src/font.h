@@ -36,8 +36,7 @@ static const char FONT_FRAGMENT_SHADER_SRC[] = {
     "uniform sampler2D tex;\n"
     "\n"
     "void main() {\n"
-    "    vec4 sampled = vec4(1.0, 1.0, 1.0, texture(tex, tex_coords).r);\n"
-    "    out_color = vec4(color, 1.0) * sampled;\n"
+    "    out_color = vec4(color, 1.0) * texture(tex, tex_coords).r;\n"
     "}\n\0",
 };
 
@@ -70,6 +69,7 @@ struct font_t {
     unsigned int shader;
     unsigned int vbo;
     unsigned int vao;
+    unsigned int color_hex;
     int shader_color_uniloc; // uniform location for 'font_color'
 };
 
