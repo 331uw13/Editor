@@ -203,6 +203,33 @@ error:
     return ok;
 }
 
+size_t string_count_ws_to(struct string_t* str, size_t n) {
+    size_t res = 0;
+
+    if(string_ready(str)) {
+        if(n > str->data_size) {
+            n = str->data_size;
+        }
+
+        int found = 0;
+
+        size_t i = 0;
+        for(; i < n; i++) {
+            if(str->data[i] != 0x20) {
+                res = i;
+                found = 1;
+                break;
+            }
+        }
+
+        if(!found && (i == n)) {
+            res = i;
+        }
+    }
+
+    return res;
+}
+
 
 int string_copy_all(struct string_t* dst_str, struct string_t* src_str) {
     int ok = 0;
@@ -271,23 +298,6 @@ size_t string_num_chars(struct string_t* str, size_t start, size_t end, char c) 
     return num;
 }
 
-int string_is_whitespace(struct string_t* str) {
-    int res = 1;
-
-    if(string_ready(str)) {
-        for(size_t i = 0; i < str->data_size; i++) {
-            char c = str->data[i];
-            if((c != 0x20) && (c != 0x9)) {
-                res = 0;
-                break;
-            }
-        }
-    }
-
-    return res;
-}
-
-
 int string_clear_data(struct string_t* str) {
     int ok = 0;
     if(string_ready(str)) {
@@ -309,14 +319,6 @@ int string_set_data(struct string_t* str, char* data, size_t size) {
 
     return ok;
 }
-
-size_t string_count_whitespace(struct string_t* str, int where_to_stop) {
-    size_t count = 0;
- 
-
-    return count;
-}
-
 
 size_t string_find_char(struct string_t* str, size_t start_index, char c, int direction) {
     size_t len = 0;

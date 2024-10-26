@@ -288,12 +288,14 @@ void move_cursor_to(struct buffer_t* buf, long int col, long int row) {
                 && (prev_row != row) 
                 && (buf->cursor_px != 0)) {
 
+            // check if not whitespace only?
             col = buf->cursor_px;
         }
         
         buf->cursor_x = liclamp(col, 0, buf->current->data_size);
    
-        if(buf->current->data_size > 1) {
+        if((buf->current->data_size > 1) 
+                && (string_count_ws_to(buf->current, buf->cursor_x) != buf->cursor_x)) {
             buf->cursor_px = buf->cursor_x;
         }
     }

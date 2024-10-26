@@ -41,6 +41,11 @@ int     string_move_data(struct string_t* dst_str, struct string_t* src_str,
                          size_t dst_offset, size_t src_offset,
                          size_t size, int flags);
 
+// count whitespace characters until non-whitespace character is found
+// or index 'n' is reached.
+// returns the result
+size_t  string_count_ws_to(struct string_t* str, size_t n);
+
 int     string_copy_all(struct string_t* dst_str, struct string_t* src_str);
 int     string_cut_data(struct string_t* str, size_t offset, size_t size);
 int     string_set_data(struct string_t* str, char* data, size_t size);
@@ -48,10 +53,6 @@ size_t  string_num_chars(struct string_t* str, size_t start, size_t end, char c)
 int     string_clear_data(struct string_t* str);
 size_t  string_count_begin_tabs(struct string_t* str);
 
-// 'where_to_stop' for string_count_whitespace
-#define STR_STOP_AT_NONWS 0 // stop counting on first non whitespace character?
-#define STR_COUNT_ALL_WS 1  // dont stop until str->data_size is reached.
-size_t  string_count_whitespace(struct string_t* str, int where_to_stop);
 
 // 'direction' for string_find_char.
 #define STRFIND_NEXT 0
