@@ -64,8 +64,10 @@ int create_buffer(struct buffer_t* buf, int id) {
     buf->current = buf->lines[0];
     buf->ready = 1;
 
-    buf->max_row = 30;
-    buf->max_col = 42;
+    buf->max_row = 1;
+    buf->max_col = 1;
+    buf->width = 64;
+    buf->height = 64;
 
     buf->select = (struct select_t) { 0, 0, 0, 0, NULL, NULL };
 
@@ -192,6 +194,10 @@ int buffer_memcheck(struct buffer_t* buf, size_t n) {
             size_t nbsize = n + BUFFER_MEMORY_BLOCK_SIZE;
             struct string_t** ptr = NULL;
 
+            if(n > BUFFER_MAX_SIZE) {
+                fprintf(stderr, "buffer %i reached max size.\n", buf->id);
+                goto error;
+            }
 
             ptr = reallocarray(buf->lines, nbsize, sizeof **buf->lines);
             if(!ptr) {
@@ -288,14 +294,17 @@ void move_cursor_to(struct buffer_t* buf, long int col, long int row) {
                 && (prev_row != row) 
                 && (buf->cursor_px != 0)) {
 
-            // check if not whitespace only?
             col = buf->cursor_px;
         }
         
         buf->cursor_x = liclamp(col, 0, buf->current->data_size);
-   
-        if((buf->current->data_size > 1) 
+
+        const long int len = buf->current->data_size
+            - string_count_ws_to(buf->current, buf->current->data_size);
+
+        if((len >= 2) 
                 && (string_count_ws_to(buf->current, buf->cursor_x) != buf->cursor_x)) {
+            
             buf->cursor_px = buf->cursor_x;
         }
     }
@@ -449,6 +458,8 @@ int buffer_add_newline(struct buffer_t* buf, size_t col, size_t row) {
     buffer_update_content_xoff(buf);
     move_cursor_to(buf, num_tabs, buf->cursor_y+1);
     ok = 1;
+
+    buf->cursor_px = 0;
 
 error:
     return ok;

@@ -16,18 +16,17 @@ void run_loop(struct editor_t* ed) {
 
 
     read_file(ed, 0, "testf.txt", 9);
+    read_file(ed, 1, "another_testf.txt", 17);
+
+    ed->num_active_buffers = 2;
+    set_buffer_dimensions(ed);
 
 
     while(!glfwWindowShouldClose(ed->win)) {
         glClear(GL_COLOR_BUFFER_BIT);
         glfwGetCursorPos(ed->win, &ed->mouse_x, &ed->mouse_y);
 
-        struct buffer_t* buf = &ed->buffers[ed->current_buf_id];
-
-        if(ed->mouse_button) {
-            buf->x = loc_to_col(ed, ed->mouse_x);
-            buf->y = loc_to_row(ed, ed->mouse_y);
-        }
+        //struct buffer_t* buf = &ed->buffers[ed->current_buf_id];
 
 
         draw_buffers(ed);
@@ -76,7 +75,7 @@ void run_loop(struct editor_t* ed) {
 int main(int argc, char** argv) {
     struct editor_t* ed = 
         init_editor("Topaz-8.ttf",
-                900, 750, !INIT_FULLSCREEN);
+                1200, 750, !INIT_FULLSCREEN);
     
     if(ed) {
         run_loop(ed);

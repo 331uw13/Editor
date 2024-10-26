@@ -84,14 +84,6 @@ static void _key_mod_input_CONTROL(struct editor_t* ed, struct buffer_t* buf, in
             ed->mode = MODE_COMMAND_LINE;
             break;
 
-        case GLFW_KEY_2:
-            font_set_scale(&ed->font, ed->font.scale + 0.05);
-            break;
-
-        case GLFW_KEY_1:
-            font_set_scale(&ed->font, ed->font.scale - 0.05);
-            break;
-
         case GLFW_KEY_X:
             clear_error_buffer(ed);
             break;
@@ -102,6 +94,14 @@ static void _key_mod_input_CONTROL(struct editor_t* ed, struct buffer_t* buf, in
             }
             break;
 
+        case GLFW_KEY_TAB:
+            if(ed->current_buf_id+1 >= ed->num_active_buffers) {
+                ed->current_buf_id = 0;
+            }
+            else {
+                ed->current_buf_id++;
+            }
+            break;
         
         case GLFW_KEY_RIGHT:
             move_cursor(buf, 4, 0);

@@ -130,7 +130,7 @@ error_and_done:
     FT_Done_Face(face);
     FT_Done_FreeType(ft);
 
-    font_set_scale(font, 0.5);
+    font_set_scale(font, 0.45);
     res = 1;
 
     font->ready = 1;

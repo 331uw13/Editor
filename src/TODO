@@ -1,10 +1,5 @@
 
 
-
-*   tabs(spaces)  in this kind of shit.
-                -----  it deletes first 4 not first 1 and then 4
-
-
 *   message type FATAL_ERROR_MSG, halt the program if these happen.
 *   error testing.
 *   select text

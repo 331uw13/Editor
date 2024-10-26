@@ -22,11 +22,13 @@ void _framebuffer_size_callback(GLFWwindow* win, int width, int height) {
         ed->window_height = height;
 
         if(ed->font.ready) {
-            ed->max_column = width / ed->font.char_w;
-            ed->max_row = height / ed->font.char_h - 2;
+            ed->max_column = width / cellw(ed);
+            ed->max_row = height / cellh(ed);
         }
 
         printf("resized window:%ix%i\n", ed->window_width, ed->window_height);
+    
+        set_buffer_dimensions(ed);
     }
 
 }
@@ -103,6 +105,45 @@ int cellw(struct editor_t* ed) {
     return (ed->font.char_w * EDITOR_TEXT_X_SPACING);
 }
 
+void set_buffer_dimensions(struct editor_t* ed) {
+    
+    struct buffer_t* buf = NULL;
+    int num_bufs = iclamp(ed->num_active_buffers, 0, MAX_BUFFERS);
+
+    if(num_bufs == 0) {
+        fprintf(stderr, "number of active buffers is zero.\n");
+        return;
+    }
+
+    const int cw = CELLW;
+    const int ch = CELLH;
+
+    int max_width = ed->window_width / num_bufs;
+    int max_height = ed->window_height - ch;
+
+    for(int i = 0; i < num_bufs; i++) {
+        buf = &ed->buffers[i];
+        if(!buf) {
+            continue;
+        }
+
+        buf->x = i * (max_width);
+        buf->y = 0;
+        buf->width = max_width;
+        buf->height = max_height;
+
+
+        buf->max_col = buf->width / cw;
+        buf->max_row = buf->height / ch;
+
+    }
+
+}
+
+void move_buffer_to(struct editor_t* ed, struct buffer_t* buf, int x, int y) {
+}
+
+
 void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h) {
     // uhh.
     if(x) {
@@ -138,15 +179,14 @@ void write_message(struct editor_t* ed, int type, char* err, ...) {
             max_size = ERROR_BUFFER_MAX_SIZE;
             buf_ptr = ed->error_buf;
             size_ptr = &ed->error_buf_size;
-
             clear_error_buffer(ed);
-
             break;
 
         case INFO_MSG:
             max_size = INFO_BUFFER_MAX_SIZE;
             buf_ptr = ed->info_buf;
             size_ptr = &ed->info_buf_size;
+            clear_info_buffer(ed);
             break;
 
         // ...
@@ -412,8 +452,8 @@ struct editor_t* init_editor(const char* fontfile,
     printf("font loaded '%s'\n", fontfile);
 
 
-    ed->max_column = (ed->window_width / ed->font.char_w);
-    ed->max_row = (ed->window_height / ed->font.char_h) - 2;
+    ed->max_column = ed->window_width / cellw(ed);
+    ed->max_row = (ed->window_height / cellh(ed)) - 2;
 
    
     ed->shader = create_shader_program(

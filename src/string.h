@@ -42,8 +42,7 @@ int     string_move_data(struct string_t* dst_str, struct string_t* src_str,
                          size_t size, int flags);
 
 // count whitespace characters until non-whitespace character is found
-// or index 'n' is reached.
-// returns the result
+// or index of 'n' is reached.
 size_t  string_count_ws_to(struct string_t* str, size_t n);
 
 int     string_copy_all(struct string_t* dst_str, struct string_t* src_str);

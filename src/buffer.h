@@ -34,8 +34,11 @@ struct buffer_t {
     long int cursor_x;
     long int cursor_y;
     long int cursor_px;
+
     int x;
     int y;
+    int width;
+    int height;
     int max_row;
     int max_col;
     struct select_t select;

@@ -31,6 +31,8 @@
 #define PRINTERR(str) \
     fprintf(stderr, "ERROR: %s '%s()' \033[31m" str "\033[0m\n", __FILE__, __func__)
 
+#define CELLW (ed->font.char_w * EDITOR_TEXT_X_SPACING)
+#define CELLH (ed->font.char_h * EDITOR_TEXT_Y_SPACING)
 
 // Modes
 //
@@ -89,6 +91,11 @@ long int loc_to_col(struct editor_t* ed, float col);
 long int loc_to_row(struct editor_t* ed, float row);
 int cellh(struct editor_t* ed);
 int cellw(struct editor_t* ed);
+
+// figure out where each buffer should be.
+void set_buffer_dimensions(struct editor_t* ed);
+void move_buffer_to(struct editor_t* ed, struct buffer_t* buf, int x, int y);
+
 
 // map X, Y, WIDTH, HEIGHT to -1.0 - +1.0
 void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h);

@@ -10,10 +10,10 @@ static void to_grid_coords(struct editor_t* ed,
         float* x, float* y,
         float* w, float* h) 
 {
-    *x = (float)col_to_loc(ed, *x)-3.0;
-    *y = (float)row_to_loc(ed, *y)-3.0;
-    *w *= cellw(ed)+1.0;
-    *h *= cellh(ed)+1.0;
+    *x = (float)col_to_loc(ed, *x);
+    *y = (float)row_to_loc(ed, *y);
+    *w *= cellw(ed);
+    *h *= cellh(ed);
 }
 
 
@@ -268,68 +268,53 @@ void draw_data_wrapped(struct editor_t* ed,
     _draw_data_r(ed, x, y, data, size, use_grid, 1, max_x);
 }
 
-static void draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf) {
-    
-    const unsigned int 
-        frame_color = 0x00AAEE;
-    
-    const unsigned int 
-        frame_name_color = 0x00AAAA;
+#define FRAME_COLOR_A 0x00AAEE
+#define FRAME_COLOR_B 0x003344
+#define FRAME_COLOR_BG 0x101111
+#define FILENAME_COLOR_A 0x70A0A0
+#define FILENAME_COLOR_B 0x203030
+#define BAR_COLOR_A 0x102020
+#define BAR_COLOR_B 0x081515
 
-    const float fthickness = 2.0;
+#define CURSOR_COLOR_A 0x10EE10
+#define CURSOR_COLOR_B 0x104410
 
-    float x = (float)buf->x;
-    float y = (float)buf->y;
-    float w = (float)buf->max_col;
-    float h = 1.0;//(float)buf->max_row;
-
-    // umm i dont know yet why to_grid_coords messes up the height
-    // this is fine.. for now.
-    to_grid_coords(ed, &x, &y, &w, &h);
-    h = (buf->max_row+1) * ed->font.char_h * EDITOR_TEXT_Y_SPACING;
-    h += fthickness;
-
-    int has_file = buf->file_opened && (buf->filename_size > 0);
+#define DATA_COLOR 0xFFEEAA
+#define LINENUM_COLOR_A 0x406040
+#define LINENUM_COLOR_B 0x252525
 
 
-    set_color_hex(ed, 0x101111);
-    draw_framed_rect(ed, 
-            x, y,
-            w, h,
-            frame_color, fthickness,
+static void draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf, int is_current) {
+    if(!buffer_ready(buf)) {
+        return;
+    }
+
+    set_color_hex(ed, FRAME_COLOR_BG);
+
+    draw_rect(ed, 
+            buf->x,
+            buf->y,
+            buf->width,
+            buf->height,
             MAP_XYWH, DRW_NO_GRID);
 
-
     // filename stuff
-   
-    set_color_hex(ed, 0x181818);
-    
+    //
+    set_color_hex(ed, is_current ? BAR_COLOR_A : BAR_COLOR_B);
     draw_rect(ed,
-            buf->x, buf->y + buf->max_row,
-            buf->max_col, 1,
-            MAP_XYWH, DRW_ONGRID);
+            buf->x,
+            buf->y + buf->height,
+            buf->width,
+            CELLH,
+            MAP_XYWH, DRW_NO_GRID);
 
-    if(has_file) {
-        font_set_color_hex(&ed->font, frame_name_color);
-        draw_data(ed, 
-                buf->x,
-                buf->y + buf->max_row,
-                buf->filename,
-                buf->filename_size,
-                DRW_ONGRID);
-    }
-
-    // select?
-
-    if(ed->mode == MODE_SELECT) {
-        font_set_color_hex(&ed->font, 0xcf72d6);
-        draw_data(ed,
-                buf->x + buf->max_col - 6,
-                buf->y + buf->max_row,
-                "[select]\0", -1,
-                DRW_ONGRID);
-    }
-
+    font_set_color_hex(&ed->font, is_current ? FILENAME_COLOR_A : FILENAME_COLOR_B);
+    draw_data(ed,
+            buf->x + 10,
+            buf->y + buf->height,
+            buf->filename,
+            buf->filename_size,
+            DRW_NO_GRID);
 }
 
 
@@ -338,146 +323,121 @@ static void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
         return;
     }
 
-    // find all tabs to cursor X position so it can rendered to correct place.
-    const size_t num_tabs = string_num_chars(buf->current, 0, buf->cursor_x, '\t');
-   
-    const int cur_y = row_to_loc(ed, buf->cursor_y + buf->y - buf->scroll);
-    const int cur_x = col_to_loc(ed, 
-              buf->cursor_x 
-            + buf->content_xoff
-            + num_tabs * (FONT_TAB_WIDTH - 1)
-            + buf->x);
+    const int cw = CELLW;
+    const int ch = CELLH;
+
+    long int x = buf->cursor_x
+            + buf->content_xoff;
+    x *= cw;
+    x += buf->x;
+
+    long int y = buf->cursor_y + buf->y - buf->scroll;
+
+    y *= ch;
+
+    // cursor background
+    //
+    set_color_hex(ed, CURSOR_COLOR_B);
+    draw_rect(ed, x, y, cw, ch, MAP_XYWH, DRW_NO_GRID);
 
 
-    const unsigned int 
-        cur_base_color = 0x104410;
-
-    const unsigned int
-        cur_color_2 = 0x10EE10;
-
-
-    // cursor background.
-    set_color_hex(ed, cur_base_color);
+    set_color_hex(ed, CURSOR_COLOR_A);
+    
+    // cursor line below
+    //
     draw_rect(ed, 
-            cur_x,
-            cur_y,
-            ed->font.char_w,
-            ed->font.char_h + 1,
-            MAP_XYWH, DRW_NO_GRID);
-
-
-    // cursor line below.
-    set_color_hex(ed, cur_color_2);
-    draw_rect(ed, 
-            cur_x,
-            cur_y + ed->font.char_h + 1,
-            ed->font.char_w,
+            x,
+            y + ch-1,
+            cw,
             2,
             MAP_XYWH, DRW_NO_GRID);
 
-    // cursor line right side.
+    // cursor line right side
+    //
     draw_rect(ed,
-            cur_x + ed->font.char_w - 1,
-            cur_y + ed->font.char_h/2,
+            x + cw - 1,
+            y + ch/2 - 2,
             2,
-            ed->font.char_h/2 + 2,
+            ch/2 + 2,
             MAP_XYWH, DRW_NO_GRID);
-
 }
 
-void draw_buffer(struct editor_t* ed, struct buffer_t* buf, char* linenum_buf, int xdrw_off) {
+static void draw_buffer(struct editor_t* ed, struct buffer_t* buf, char* linenum_buf) {
     if(!buffer_ready(buf)) {
         return;
     }
 
 
-    xdrw_off += buf->x;
-    int ydrw_off = buf->y;
-    
     struct string_t* line = NULL;
 
+    const int xdrw_off = buf->content_xoff;
 
     for(size_t i = buf->scroll; i < buf->num_used_lines; i++) {
-        if(i >= (buf->max_row + buf->scroll)) {
+        if(i >= buf->max_row + buf->scroll) {
             break;
         }
 
         line = buf->lines[i];
         if(!string_ready(line)) {
-            continue;
+            fprintf(stderr, "corrupted data?? buffer id:%i\n", buf->id);
+            return;
         }
 
-        const int y = i + ydrw_off - buf->scroll;
-        const int line_num_len = snprintf(linenum_buf, LINENUM_BUF_SIZE, "%li", i);
+        const int cw = CELLW;
+        const int ch = CELLH;
 
-        // data
-        //
-        font_set_color_hex(&ed->font, 0xFFEEAA);
-        draw_data(ed, xdrw_off, y, line->data, line->data_size, DRW_ONGRID);
-       
-        
-        
+        int linenum_len = snprintf(linenum_buf, LINENUM_BUF_SIZE, "%li", i);
+
+        int x = buf->x;
+        int y = i - buf->scroll;
+        int ln_x = x + cw * (xdrw_off - linenum_len - 2);
+
+        y *= ch;
+        y += buf->y;
+        x += cw * xdrw_off;
+
+        font_set_color_hex(&ed->font, DATA_COLOR);
+        draw_data(ed, x, y, line->data, line->data_size, DRW_NO_GRID);
+
+
         // line numbers
         //
-        font_set_color_hex(
-                &ed->font,
-                (i == buf->cursor_y) ? 0x406040 : 0x252525);
+        font_set_color_hex(&ed->font,
+                (i == buf->cursor_y) ? LINENUM_COLOR_A : LINENUM_COLOR_B);
 
-        draw_data(ed, 
-                xdrw_off - line_num_len - 2, y,
-                linenum_buf, LINENUM_BUF_SIZE,
-                DRW_ONGRID);
-
-        
-        font_set_color_hex(&ed->font, 0x504030);
-        draw_char(ed, xdrw_off - 1, y, '|', 1);
-    
+        draw_data(ed, ln_x, y, linenum_buf, LINENUM_BUF_SIZE, DRW_NO_GRID);
 
     }
 }
 
 static void draw_selected(struct editor_t* ed, struct buffer_t* buf) {
-
     if((ed->mode != MODE_SELECT) || (buf->id != ed->current_buf_id)) {
         return;
     }
 
-    // drawing coordinates
-    //
-    const int dx0 = buf->select.x0 + buf->content_xoff;
-
-    set_color_hex(ed, 0x653575);
-    draw_rect(ed,
-            buf->select.x0 + buf->content_xoff,
-            buf->select.y0,
-            1,
-            1,
-            MAP_XYWH, DRW_ONGRID);
-
 }
 
-
-// 
-// TODO: draw multple buffers.
-//
 void draw_buffers(struct editor_t* ed) {
-
+    
     char linenum_buf[LINENUM_BUF_SIZE];
-    struct buffer_t* buf = &ed->buffers[0];
-   
-    if(!buffer_ready(buf)) {
-        write_message(ed, ERROR_MSG, "Uninitialized buffer!\0");
-        return;
+
+    int num_bufs = iclamp(ed->num_active_buffers, 0, MAX_BUFFERS);
+    struct buffer_t* buf = NULL;
+    for(int i = 0; i < num_bufs; i++) {
+        buf = &ed->buffers[i];
+        if(!buffer_ready(buf)) {
+            write_message(ed, ERROR_MSG, "Uninitialized buffer!\0");
+            fprintf(stderr, "buffer %i, uninitialized.\n");
+            continue;
+        }
+
+        draw_buffer_frame(ed, buf, i == ed->current_buf_id);
+        draw_cursor(ed, buf);
+        draw_buffer(ed, buf, linenum_buf);
+
+
     }
 
-    const int xdrw_off = buf->content_xoff;
-
-    draw_buffer_frame  (ed, buf);
-    draw_selected      (ed, buf);
-    draw_cursor        (ed, buf);
-    draw_buffer        (ed, buf, linenum_buf, xdrw_off);
 }
-
-
 
 
