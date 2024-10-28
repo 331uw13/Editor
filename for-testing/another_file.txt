@@ -1,0 +1,27 @@
+#include <stdio.h>
+#include <string.h>
+
+#include "just_testing_thigns.h"
+
+
+
+
+// things, ok 123
+
+
+dsfojsdlkfj dlkfj djfkldjkslfd ödfjkd
+dlfojdsklfjds       fd
+d fd
+
+
+
+
+
+
+dfsdjfkdsjfkldjs ffi99292929138029138012
+
+s
+asdasdasasdasdasd
+
+
+END
