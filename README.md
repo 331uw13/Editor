@@ -1,9 +1,15 @@
 # 331uw13's Code Editor
- ### <ins> Not done yet. </ins>
+
+> [!WARNING]
+> The Editor is not finished. It needs alot more work to be done.
 
 
-* Using OpenGL and glfw
-
+#### Run the commands to test the application:
+```bash
+git clone https://github.com/331uw13/Editor.git
+cd Editor
+zig build && ./zig-out/bin/editor
+```
 
 ![Editor](https://github.com/331uw13/Editor/blob/main/screenshots/Editor_2024-10-26_18-49.png?raw=true)
 
