@@ -19,6 +19,8 @@
 | `CTRL + LEFT/RIGHT/UP/DOWN` | Movement multiplied by 4 |
 | `ALT + UP` | Goto start of the buffer |
 | `ALT + DOWN` | Goto end of the buffer |
+| `SHIFT + LEFT/RIGHT` | Move by 1 word |
+| `SHIFT + UP/DOWN` | Move up/down but skip rows containing only whitespace |
 
 ## Commands
 `q.` quit without asking to save
