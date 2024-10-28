@@ -150,6 +150,18 @@ int string_append_char(struct string_t* str, char c) {
     return ok;
 }
 
+char string_get_char(struct string_t* str, size_t index) {
+    char c = 0;
+
+    if(string_ready(str)) {
+        if(index < str->data_size && str->data_size <= str->mem_size) {
+            c = str->data[index];
+        }
+    }
+
+    return c;
+}
+
 
 int string_move_data(struct string_t* dst_str, struct string_t* src_str, 
         size_t dst_offset, size_t src_offset,
@@ -230,6 +242,20 @@ size_t string_count_ws_to(struct string_t* str, size_t n) {
     return res;
 }
 
+int string_is_data_ws(struct string_t* str) {
+    int res = 1;
+
+    if(string_ready(str)) {
+        for(size_t i = 0; i < str->data_size; i++) {
+            if(str->data[i] != 0x20) {
+                res = 0;
+                break;
+            }
+        }
+    }
+
+    return res;
+}
 
 int string_copy_all(struct string_t* dst_str, struct string_t* src_str) {
     int ok = 0;

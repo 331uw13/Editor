@@ -145,7 +145,7 @@ static void _key_mod_input_ALT(struct editor_t* ed, struct buffer_t* buf, int ke
                     return;
                 }
                 buf->select = (struct select_t) {
-                    buf->cursor_x, buf->cursor_y, // begin position
+                buf->cursor_x, buf->cursor_y, // begin position
                     buf->cursor_x, buf->cursor_y, // end position
                     buf->current, // begin string
                     buf->current, // end string
@@ -166,54 +166,104 @@ static void _key_mod_input_SHIFT(struct editor_t* ed, struct buffer_t* buf, int 
 
     switch(key) {
 
-        /*
         // skip by 1 word (right)
         //
         case GLFW_KEY_RIGHT:
-            move_cursor(buf, string_find_char(buf->current,
-                        buf->cursor_x, 0x20, STRFIND_NEXT) + 1, 0);
+            {
+                size_t where = buf->cursor_x;
+                size_t imax = buf->current->data_size;
+                size_t jump_to = imax;
+                int err = 0;
+
+                for(size_t i = where; i < imax; i++) {
+                    char c = string_get_char(buf->current, i);
+                    if(c == 0) {
+                        err = 1;
+                        break;     
+                    }
+                    if(c == 0x20) {
+                        char next_c = string_get_char(buf->current, i+1);
+                        if(next_c == 0) {
+                            err = 1;
+                            break;
+                        }
+
+                        if(next_c == 0x20) {
+                            continue;
+                        }
+
+                        jump_to = i + 1;
+                        break;
+                    }
+
+                }
+                if(!err) {
+                    move_cursor_to(buf, jump_to, buf->cursor_y);
+                }
+           }
             break;
 
-            
         // skip by 1 word (left)
         //
         case GLFW_KEY_LEFT:
-            { // dont want to go to 0 X position 
-              // if the start of the line only contains spaces.
-              //
-                long int dist = string_find_char(
-                        buf->current, buf->cursor_x, 0x20, STRFIND_PREV) + 1;
-                long int pos = buf->cursor_x - dist;
+            {
 
-                if(pos == 0) {
-                    for(size_t i = 0; i < buf->current->data_size; i++) {
-                        if(buf->current->data[i] != 0x20) {
-                            pos = i;
+                size_t min_x = string_count_ws_to(buf->current, buf->current->data_size);
+                size_t where = buf->cursor_x == buf->current->data_size ? (buf->cursor_x - 1) : buf->cursor_x;
+                size_t jump_to = min_x;
+                int err = 0;
+
+                for(size_t i = where; i > 0; i--) {
+                    char c = string_get_char(buf->current, i);
+                    if(c == 0) {
+                        err = 1;
+                        break;
+                    }
+                    if(c == 0x20) {
+                        char prev_c = string_get_char(buf->current, i-1);
+                        if(prev_c == 0) {
+                            err = 1;
                             break;
                         }
+
+                        if(prev_c == 0x20) {
+                            continue;
+                        }
+
+                        jump_to = i - 1;
+                        break;
                     }
                 }
 
-                move_cursor_to(buf, pos, MOVCUR_KEEP_Y);
+                if(!err) {
+                    move_cursor_to(buf, jump_to, buf->cursor_y);
+                }
             }
             break;
-            */
-
-        /*
+           
         // find non white space. up/down
         //
         case GLFW_KEY_UP:
             {
-                if(buf->cursor_y <= 0) { return; }
-                struct string_t* str = NULL;
-                for(size_t i = buf->cursor_y-1; i > 0; i--) {
-                    str = buffer_get_string(buf, i);
-                    if(!str) {
-                        break;
+                if(buf->cursor_y > 0) {
+                    struct string_t* line = NULL;
+                    long int y = buf->cursor_y - 1;
+                    int err = 0;
+
+                    for(; y > 0; y--) {
+                        line = buffer_get_string(buf, y);
+                        if(!line) {
+                            err = 1;
+                            break;
+                        }
+
+                        if(!string_is_data_ws(line)) {
+                            break;
+                        }
                     }
-                    if(!string_is_whitespace(str) || (i-1 == 0)) {
-                        move_cursor_to(buf, MOVCUR_KEEP_X, i);
-                        break;
+
+                    if(!err) {
+                        move_cursor_to(buf, buf->cursor_x, y);
                     }
                 }
             }
@@ -221,22 +271,28 @@ static void _key_mod_input_SHIFT(struct editor_t* ed, struct buffer_t* buf, int 
 
         case GLFW_KEY_DOWN:
             {
-                if(buf->cursor_y >= buf->num_used_lines) { return; }
-                struct string_t* str = NULL;
-                for(size_t i = buf->cursor_y+1; i < buf->num_used_lines; i++) {
-                    str = buffer_get_string(buf, i);
-                    if(!str) {
+                struct string_t* line = NULL;
+                long int y = buf->cursor_y + 1;
+                int err = 0;
+
+                for(; y < buf->num_used_lines; y++) {
+                    line = buffer_get_string(buf, y);
+                    if(!line) {
+                        err = 1;
                         break;
                     }
-                    if(!string_is_whitespace(str) || (i+1 == buf->num_used_lines)) {
-                        move_cursor_to(buf, MOVCUR_KEEP_X, i);
+
+                    if(!string_is_data_ws(line)) {
                         break;
                     }
+                }
+
+                if(!err) {
+                    move_cursor_to(buf, buf->cursor_x, y);
                 }
             }
             break;
 
-            */
     }
     // -- SHIFT
 }
@@ -307,11 +363,6 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
                             string_add_char(buf->current, 0x20, buf->cursor_x);
                         }
                         move_cursor(buf, FONT_TAB_WIDTH, 0);
-                        /*
-                        if(string_add_char(buf->current, '\t', buf->cursor_x)) {
-                            move_cursor(buf, 1, 0);
-                        }
-                        */
                         break;
 
                     case GLFW_KEY_DELETE:

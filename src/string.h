@@ -32,6 +32,9 @@ int     string_add_char(struct string_t* str, char c, size_t index);
 int     string_rem_char(struct string_t* str, size_t index);
 int     string_append_char(struct string_t* str, char c);
 
+// returns 0 if index is out of bounds.
+char    string_get_char(struct string_t* str, size_t index);
+
 // flags for 'string_move_data'
 #define STRING_OVERWRITE_DATA 0x1
 #define STRING_ZERO_SRC 0x2
@@ -45,13 +48,15 @@ int     string_move_data(struct string_t* dst_str, struct string_t* src_str,
 // or index of 'n' is reached.
 size_t  string_count_ws_to(struct string_t* str, size_t n);
 
+// NOTE: also returns 1 for empty string.
+int     string_is_data_ws(struct string_t* str);
+
 int     string_copy_all(struct string_t* dst_str, struct string_t* src_str);
 int     string_cut_data(struct string_t* str, size_t offset, size_t size);
 int     string_set_data(struct string_t* str, char* data, size_t size);
 size_t  string_num_chars(struct string_t* str, size_t start, size_t end, char c);
 int     string_clear_data(struct string_t* str);
 size_t  string_count_begin_tabs(struct string_t* str);
-
 
 // 'direction' for string_find_char.
 #define STRFIND_NEXT 0

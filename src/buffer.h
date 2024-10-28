@@ -11,7 +11,7 @@
 #define BUFFER_MAX_FILENAME_SIZE 256
 
 
-struct select_t {
+struct select_t { // TODO.
     
     long int x0; // begin position
     long int y0; //
@@ -35,14 +35,17 @@ struct buffer_t {
     long int cursor_y;
     long int cursor_px;
 
+    int max_row;
+    int max_col;
+    
     int x;
     int y;
     int width;
     int height;
-    int max_row;
-    int max_col;
+    
     struct select_t select;
-    struct string_t* current; // &lines[buffer->cursor_y]
+    struct string_t* current; // &lines[buffer->cursor_y],
+                              // set everytime move_cursor_to is called.
     
     size_t scroll;
 
@@ -50,7 +53,7 @@ struct buffer_t {
     char    filename[BUFFER_MAX_FILENAME_SIZE+1];
     size_t  filename_size;
 
-    int id; // buffer can be accessed from 'editor->buffers[id]'
+    int id; // NOTE: buffer can be accessed from 'editor->buffers[id]'
     int ready;
 };
 
@@ -70,20 +73,16 @@ int    buffer_clear_all(struct buffer_t* buf);
 int    buffer_memcheck(struct buffer_t* buf, size_t n);
 
 // this calls 'buffer_memcheck' and
-// increments or decrements the 'num_used_lines'
-// returns 0 on failure.
-// returns 1 on success or no need for change.
+// increments/decrements the 'num_used_lines'
+//   returns 0 on failure.
+//   returns 1 on success or no need for change.
 int buffer_inc_size(struct buffer_t* buf, size_t n);
 int buffer_dec_size(struct buffer_t* buf, size_t n);
 
 void  buffer_scroll_to(struct buffer_t* buf, size_t y);
 void  buffer_scroll   (struct buffer_t* buf, int offset);
 
-
-#define MOVCUR_KEEP_X -65536
-#define MOVCUR_KEEP_Y -65536
-
-// 'move_cursor_to' sets the scroll if row is offscreen
+// NOTE: 'move_cursor_to' sets the scroll if row is offscreen
 void  move_cursor_to(struct buffer_t* buf, long int col, long int row);
 void  move_cursor   (struct buffer_t* buf, int xoff, int yoff);
 

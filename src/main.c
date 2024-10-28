@@ -15,10 +15,16 @@ void run_loop(struct editor_t* ed) {
     if(!ed->ready) { return; }
 
 
-    read_file(ed, 0, "testf.txt", 9);
-    read_file(ed, 1, "another_testf.txt", 17);
+    long int aaa = 28392839023;
+    char testc = aaa-1;
 
-    ed->num_active_buffers = 2;
+    printf("%x, %li\n", testc, sizeof(testc));
+
+
+    read_file(ed, 0, "testf.txt", 9);
+    //read_file(ed, 1, "another_testf.txt", 17);
+
+    ed->num_active_buffers = 1;
     set_buffer_dimensions(ed);
 
 

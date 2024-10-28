@@ -269,13 +269,6 @@ void buffer_scroll(struct buffer_t* buf, int offset) {
 void move_cursor_to(struct buffer_t* buf, long int col, long int row) {
     if(!buffer_ready(buf)) { return; }
 
-    if(row == MOVCUR_KEEP_Y) {
-        row = buf->cursor_y;
-    }
-    if(col == MOVCUR_KEEP_X) {
-        col = buf->cursor_x;
-    }
-
 
     if(row > (buf->scroll + buf->max_row)-1) {
         buffer_scroll_to(buf, (buf->scroll + (row - buf->cursor_y)));
