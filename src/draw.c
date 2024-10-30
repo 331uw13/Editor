@@ -12,8 +12,8 @@ static void to_grid_coords(struct editor_t* ed,
 {
     *x = (float)col_to_loc(ed, *x);
     *y = (float)row_to_loc(ed, *y);
-    *w *= cellw(ed);
-    *h *= cellh(ed);
+    *w *= CELLW;
+    *h *= CELLH;
 }
 
 
@@ -186,7 +186,7 @@ void draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid)
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-static void _draw_data_r(
+static int _draw_data_r(
         struct editor_t* ed,
         int x,
         int y,
@@ -197,8 +197,9 @@ static void _draw_data_r(
         int max_x
         )
 {
+    int num_newlines = 0;
     if(!data) {
-        return;
+        goto done;
     }
 
     // search for null character?
@@ -219,13 +220,18 @@ static void _draw_data_r(
         switch(c) {
             
             case 0:
-                return;
+                goto done;
             
             case 0x9:
                 x += xinc * FONT_TAB_WIDTH;
                 continue;
 
             case 0xA:
+                if(use_wrapping) {
+                    x = xorigin;
+                    y += yinc;
+                    num_newlines++;
+                }
                 continue;
 
             default:
@@ -247,25 +253,29 @@ static void _draw_data_r(
         if(use_wrapping && (x >= max_x)) {
             x = xorigin;
             y += yinc;
+            num_newlines++;
         }
 
         if(old_color > 0) {
             font_set_color_hex(&ed->font, old_color);
         }
     }
+
+done:
+    return num_newlines;
 }
 
 void draw_data(struct editor_t* ed, int x, int y, char* data, long int size, int use_grid) {
     _draw_data_r(ed, x, y, data, size, use_grid, 0, 0);
 }
 
-void draw_data_wrapped(struct editor_t* ed,
+int draw_data_w(struct editor_t* ed,
             int x, int y,
             char* data,
             long int size,
             int max_x,
             int use_grid) {
-    _draw_data_r(ed, x, y, data, size, use_grid, 1, max_x);
+    return _draw_data_r(ed, x, y, data, size, use_grid, 1, max_x);
 }
 
 #define FRAME_COLOR_A 0x00AAEE
@@ -283,6 +293,7 @@ void draw_data_wrapped(struct editor_t* ed,
 #define LINENUM_COLOR_A 0x406040
 #define LINENUM_COLOR_B 0x252525
 
+#define READONLY_COLOR 0xA34514
 
 static void draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf, int is_current) {
     if(!buffer_ready(buf)) {
@@ -312,9 +323,18 @@ static void draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf, int is_
     draw_data(ed,
             buf->x + 10,
             buf->y + buf->height,
-            buf->filename,
-            buf->filename_size,
+            buf->file.name,
+            buf->file.name_size,
             DRW_NO_GRID);
+
+    if(buf->file.readonly) {
+        font_set_color_hex(&ed->font, READONLY_COLOR);
+        draw_data(ed,
+                buf->x + CELLW * (buf->file.name_size + 1),
+                buf->y + buf->height,
+                "[read only]\0", -1,
+                DRW_NO_GRID);
+    }
 }
 
 
@@ -426,8 +446,7 @@ void draw_buffers(struct editor_t* ed) {
     for(int i = 0; i < num_bufs; i++) {
         buf = &ed->buffers[i];
         if(!buffer_ready(buf)) {
-            write_message(ed, ERROR_MSG, "Uninitialized buffer!\0");
-            fprintf(stderr, "buffer %i, uninitialized.\n");
+            write_message(ed, ERROR_MSG, "Uninitialized buffer(%i).\0", i);
             continue;
         }
 
@@ -439,5 +458,43 @@ void draw_buffers(struct editor_t* ed) {
     }
 
 }
+
+void draw_everything(struct editor_t* ed) {
+
+        draw_buffers(ed);
+
+        if(ed->mode == MODE_COMMAND_LINE) {
+            set_color_hex(ed, 0x231100);
+            draw_framed_rect(ed, 
+                    5, 3,
+                    ed->window_width-10, ed->font.char_h+8,
+                    0x554510,
+                    1.0,
+                    MAP_XYWH, DRW_NO_GRID);
+            
+            font_set_color_hex(&ed->font, 0x773310);
+            draw_char(ed, 10, 6, '>', DRW_NO_GRID);
+
+
+            // cmd_cursor
+            //
+            set_color_hex(ed, 0x225522);
+            draw_rect(ed, 
+                    10 + (ed->cmd_cursor+1) * ed->font.char_w,
+                    6,
+                    ed->font.char_w,
+                    ed->font.char_h,
+                    MAP_XYWH, DRW_NO_GRID);
+
+            font_set_color_hex(&ed->font, 0xAA6633);
+            draw_data(ed, ed->font.char_w+10, 6, 
+                    ed->cmd_str->data, ed->cmd_str->data_size, DRW_NO_GRID);
+        }
+
+
+        draw_error_buffer(ed);
+        draw_info_buffer(ed);
+}
+
 
 

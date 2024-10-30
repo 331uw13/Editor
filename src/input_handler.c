@@ -119,7 +119,6 @@ static void _key_mod_input_CONTROL(struct editor_t* ed, struct buffer_t* buf, in
             move_cursor(buf, 0, 4);
             break;
 
-
         default:break;
     }
     // -- CONTROL
@@ -442,9 +441,6 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
             }
             break;
 
-        default:
-            fprintf(stderr, "warning: current mode is invalid.\n");
-            break;
     }
 }
 

@@ -29,16 +29,12 @@ int create_buffer(struct buffer_t* buf, int id) {
     buf->num_used_lines = 0;
     buf->cursor_x = 0;
     buf->cursor_y = 0;
-    buf->file_opened = 0;
-    buf->filename_size = 0;
     buf->current = NULL;
     buf->max_col = 0;
     buf->max_row = 0;
     buf->x = 0;
     buf->y = 0;
     buf->content_xoff = 0;
-
-    memset(buf->filename, 0, BUFFER_MAX_FILENAME_SIZE);
 
     buf->lines = malloc(mem_size);
     if(!buf->lines) {
@@ -70,7 +66,7 @@ int create_buffer(struct buffer_t* buf, int id) {
     buf->height = 64;
 
     buf->select = (struct select_t) { 0, 0, 0, 0, NULL, NULL };
-
+    buf->file = (struct file_t) { 0, {0}, 0, 0};
     buffer_update_content_xoff(buf);
 
     ok = 1;
@@ -92,7 +88,7 @@ void delete_buffer(struct buffer_t* buf) {
         }
 
         buf->scroll = 0;
-        buf->file_opened = 0;
+        buf->file.opened = 0;
         buf->ready = 0;
         buf->cursor_x = 0;
         buf->cursor_y = 0;
@@ -120,7 +116,11 @@ void buffer_update_selected(struct buffer_t* buf) {
 int buffer_ready(struct buffer_t* buf) {
     int res = 0;
     if(buf) {
-        res = (buf->lines && buf->num_alloc_lines > 0 && buf->ready);
+        res = (    buf->lines != NULL 
+                && buf->num_alloc_lines > 0 
+                && buf->ready
+                && buf->num_used_lines <= buf->num_alloc_lines
+                );
         buf->ready = res;
     }
 
@@ -269,6 +269,7 @@ void buffer_scroll(struct buffer_t* buf, int offset) {
 void move_cursor_to(struct buffer_t* buf, long int col, long int row) {
     if(!buffer_ready(buf)) { return; }
 
+    row = liclamp(row, 0, buf->num_used_lines);
 
     if(row > (buf->scroll + buf->max_row)-1) {
         buffer_scroll_to(buf, (buf->scroll + (row - buf->cursor_y)));
@@ -351,8 +352,9 @@ void buffer_shift_data(struct buffer_t* buf, size_t row, int direction) {
     struct string_t* bstr = NULL;
 
     if(max >= buf->num_alloc_lines) {
-        // TODO  umm. ok? try resizing?
-        return;
+        if(!buffer_memcheck(buf, max)) {
+            return;
+        }
     }
 
     switch(direction) {
@@ -380,6 +382,10 @@ void buffer_shift_data(struct buffer_t* buf, size_t row, int direction) {
                 for(size_t i = row-1; i < max; i++) {
                     astr = buffer_get_string(buf, i-1);
                     bstr = buffer_get_string(buf, i);
+
+                    if(!astr || !bstr)  {
+                        break;
+                    }
 
                     if(astr->data_size > 0) {
                         if(!string_move_data(astr, bstr, astr->data_size, 
@@ -436,7 +442,7 @@ int buffer_add_newline(struct buffer_t* buf, size_t col, size_t row) {
         string_cut_data(current, col, current->data_size - col);
         string_cut_data(below, 0, col);
 
-        // count tabs until non whitespace character.
+
         for(size_t i = 0; i < current->data_size; i++) {
             char c = current->data[i];
             if(c != 0x20) {

@@ -51,7 +51,10 @@ void delete_string(struct string_t** str) {
 int string_ready(struct string_t* str) {
     int ready = 0;
     if(str) {
-        ready = (str->data && (str->mem_size > 0));
+        ready = (   str->data 
+                && str->mem_size > 0
+                && str->data_size <= str->mem_size
+                );
     }
     return ready;
 }
@@ -61,12 +64,11 @@ int string_memcheck(struct string_t* str, size_t size) {
 
     if(string_ready(str)) {
         if(size <= str->mem_size) {
-            
             // TODO: resize string to smaller size?
+            //   
             ok = 1;
         }
         else {
-
             char* nptr = NULL;
             size_t new_size = size+STRING_MEMORY_BLOCK_SIZE;
             
@@ -379,4 +381,24 @@ size_t string_find_char(struct string_t* str, size_t start_index, char c, int di
 
     return len;
 }
+
+int count_data_linewraps(char* data, size_t size, int max_line_size) {
+    int count = 0;
+    int x = 0;
+
+    for(size_t i = 0; i < size; i++) {
+        if(data[i] == 0xA) {
+            count++;
+        }
+        x++;
+
+        if(max_line_size > 0 && (x >= max_line_size)) {
+            count++;
+            x = 0;
+        }
+    }
+
+    return count;
+}
+
 

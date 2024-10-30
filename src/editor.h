@@ -20,13 +20,13 @@
 
 #define MAX_BUFFERS 4
 #define ERROR_BUFFER_MAX_SIZE 256
-#define INFO_BUFFER_MAX_SIZE 64
+#define INFO_BUFFER_MAX_SIZE 96
 #define EDITOR_X_PADDING 8
 #define EDITOR_Y_PADDING 8
 #define EDITOR_TEXT_Y_SPACING 1.3 // how much space between lines?
                                   // ^ NOTE: do not set this to 0.
 #define EDITOR_TEXT_X_SPACING 1.0 // how much space between characters?
-#define COMMAND_LINE_MAX_SIZE 32
+#define COMMAND_LINE_MAX_SIZE 64
 
 #define PRINTERR(str) \
     fprintf(stderr, "ERROR: %s '%s()' \033[31m" str "\033[0m\n", __FILE__, __func__)
@@ -39,6 +39,7 @@
 #define MODE_NORMAL 0
 #define MODE_SELECT 1
 #define MODE_COMMAND_LINE 2
+#define MODE_CONFIRM_CHOICE 3
 
 struct editor_t {
 
@@ -60,8 +61,8 @@ struct editor_t {
     unsigned int vbo;
     unsigned int vao;
     unsigned int shader;
+    unsigned int drw_color_hex; // set_color_hex changes this value.
     int shader_color_uniloc; // uniform location.
-    unsigned int drw_color_hex; // color saved from set_color_hex().
 
     // the error which is written to the buffer must be null terminated.
     char    error_buf[ERROR_BUFFER_MAX_SIZE];
@@ -89,8 +90,13 @@ float  col_to_loc(struct editor_t* ed, long int col);
 float  row_to_loc(struct editor_t* ed, long int row);
 long int loc_to_col(struct editor_t* ed, float col);
 long int loc_to_row(struct editor_t* ed, float row);
-int cellh(struct editor_t* ed);
-int cellw(struct editor_t* ed);
+
+
+#define USER_ANSWER_YES 1
+#define USER_ANSWER_NO  0
+// NOTE: 'question' must be null character terminated.
+//       if error happens returns 0
+int confirm_user_choice(struct editor_t* ed, char* question);
 
 // figure out where each buffer should be.
 void set_buffer_dimensions(struct editor_t* ed);
@@ -101,8 +107,6 @@ void move_buffer_to(struct editor_t* ed, struct buffer_t* buf, int x, int y);
 void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h);
 
 
-// message types
-//
 #define ERROR_MSG 0
 #define INFO_MSG 1
 

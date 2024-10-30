@@ -29,12 +29,12 @@ struct editor_t;
 struct buffer_t;
 
 // 'need_mapping'?
-// maps coordinates from 0 - 'window size' to -1.0 - +1.0
+// maps coordinates from 0-'window size' to -1.0 - +1.0
 #define ALREADY_MAPPED 0
 #define MAP_XYWH 1
 
 // 'use_grid'?
-// basically just coordinates multiply by 'font character width/height'
+// if used coordinates multiply by cell width/height
 #define DRW_NO_GRID 0
 #define DRW_ONGRID  1
 
@@ -62,8 +62,10 @@ void draw_framed_rect(struct editor_t* ed,
 void  draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid);
 void  draw_data(struct editor_t* ed, int x, int y, char* data, long int size, int use_grid);
 
+// uses line wrapping and \n character is not ignored
 // if use_grid is set to 1 max_x is treated as 'max_column'
-void  draw_data_wrapped(struct editor_t* ed,
+// returns the amount of newlines.
+int   draw_data_w(struct editor_t* ed,
             int x, int y,
             char* data,
             long int size,
@@ -72,5 +74,7 @@ void  draw_data_wrapped(struct editor_t* ed,
 
 void draw_buffers(struct editor_t* ed);
 
+
+void draw_everything(struct editor_t* ed);
 
 #endif

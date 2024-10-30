@@ -22,8 +22,8 @@ void _framebuffer_size_callback(GLFWwindow* win, int width, int height) {
         ed->window_height = height;
 
         if(ed->font.ready) {
-            ed->max_column = width / cellw(ed);
-            ed->max_row = height / cellh(ed);
+            ed->max_column = width / CELLW;
+            ed->max_row = height / CELLH;
         }
 
         printf("resized window:%ix%i\n", ed->window_width, ed->window_height);
@@ -97,13 +97,86 @@ long int loc_to_row(struct editor_t* ed, float row) {
     return r;
 }
 
-int cellh(struct editor_t* ed) {
-    return (ed->font.char_h * EDITOR_TEXT_Y_SPACING);
+int confirm_user_choice(struct editor_t* ed, char* question) {
+    int res = 0;
+    int wait_for_answer = 1;
+
+    if(!question) {
+        goto error;
+    }
+
+    const size_t q_len = strlen(question);
+    if(q_len == 0) {
+        fprintf(stderr, "question is empty.\n");
+        goto error;
+    }
+
+
+    const int max_column = q_len + 4;
+    const float w = max_column * CELLW;
+    
+    int num_lines = count_data_linewraps(question, q_len, max_column);
+    const float h = CELLH * (num_lines + 4);
+
+    if(h * w <= 0) {
+        fprintf(stderr, "question box is too small.\n");
+        goto error;
+    }
+
+    const float x = ed->window_width / 2 - (w / 2);
+    const float y = ed->window_height / 2 - (h / 2);
+
+    int old_mode = ed->mode;
+    ed->mode = MODE_CONFIRM_CHOICE;
+
+    while(wait_for_answer && !glfwWindowShouldClose(ed->win)) {
+        glClear(GL_COLOR_BUFFER_BIT);
+        draw_everything(ed);
+
+        set_color_hex(ed, 0x242010);
+        draw_framed_rect(ed,
+                x, y, w, h,
+                0x8E8E50,
+                2.0,
+                MAP_XYWH, DRW_NO_GRID);
+
+
+        font_set_color_hex(&ed->font, 0x8E8E4F);
+        int num_nl = draw_data_w(ed, 
+                x + CELLW,
+                y + CELLH,
+                question,
+                q_len,
+                x + w,
+                DRW_NO_GRID
+                );
+
+        draw_data(ed,
+                x + CELLW,
+                y + (CELLH * (num_nl + 2)),
+                "Y(es) / N(o)\0", -1,
+                DRW_NO_GRID);
+
+        if(glfwGetKey(ed->win, GLFW_KEY_Y) == GLFW_PRESS) {
+            res = USER_ANSWER_YES;
+            wait_for_answer = 0;
+        }
+        else if(glfwGetKey(ed->win, GLFW_KEY_N) == GLFW_PRESS) {
+            res = USER_ANSWER_NO;
+            wait_for_answer = 0;
+        }
+
+
+        glfwSwapBuffers(ed->win);
+        glfwWaitEvents();
+    }
+
+    ed->mode = old_mode;
+
+error:
+    return res;
 }
 
-int cellw(struct editor_t* ed) {
-    return (ed->font.char_w * EDITOR_TEXT_X_SPACING);
-}
 
 void set_buffer_dimensions(struct editor_t* ed) {
     
@@ -137,7 +210,6 @@ void set_buffer_dimensions(struct editor_t* ed) {
         buf->max_row = buf->height / ch;
 
     }
-
 }
 
 void move_buffer_to(struct editor_t* ed, struct buffer_t* buf, int x, int y) {
@@ -280,6 +352,10 @@ void write_message(struct editor_t* ed, int type, char* err, ...) {
         *size_ptr = 0;
     }
 
+    if(type == ERROR_MSG) {
+        fprintf(stderr, "%s\n", buffer);
+    }
+
     memmove(buf_ptr + *size_ptr, buffer, buf_size);
     *size_ptr += buf_size;
 }
@@ -299,12 +375,15 @@ void draw_error_buffer(struct editor_t* ed) {
         return;
     }
 
-    const int lines_shown = 9;
     const int chars_shown = 32;
-    const int bx = ed->max_column - chars_shown;
+    const int bx = ed->max_column - chars_shown - 2;
     const int by = 1;
 
     set_color_hex(ed, 0x201310);
+
+    int lines_shown = count_data_linewraps(
+            ed->error_buf, ed->error_buf_size, chars_shown) + 2;
+
 
     draw_framed_rect(ed, 
             bx, by,
@@ -317,8 +396,8 @@ void draw_error_buffer(struct editor_t* ed) {
     font_set_color_hex(&ed->font, 0x403030);
     draw_data(ed, bx+13, by, "ctrl+x to close\0", -1, DRW_ONGRID);
 
-    font_set_color_hex(&ed->font, 0x905030);
-    draw_data_wrapped(ed, 
+    font_set_color_hex(&ed->font, 0xA75030);
+    draw_data_w(ed, 
             bx, by+1,
             ed->error_buf, ed->error_buf_size,
             bx + chars_shown,
@@ -452,8 +531,8 @@ struct editor_t* init_editor(const char* fontfile,
     printf("font loaded '%s'\n", fontfile);
 
 
-    ed->max_column = ed->window_width / cellw(ed);
-    ed->max_row = (ed->window_height / cellh(ed)) - 2;
+    ed->max_column = ed->window_width / CELLW;
+    ed->max_row = (ed->window_height / CELLH) - 2;
 
    
     ed->shader = create_shader_program(

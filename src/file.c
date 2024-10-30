@@ -48,17 +48,27 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
             goto error;
         }
 
-
         if(access(filename, F_OK)) {
             write_message(ed, ERROR_MSG, "File doesnt exist '%s'.\0", filename);
             PRINTERR("failed to access file");
             goto error;
         }
 
-        memmove(buf->filename, filename, filename_size);
-        buf->filename_size = filename_size;
 
-        buf->filename[buf->filename_size] = 0;
+        if(buf->file.opened) {
+            
+            if(confirm_user_choice(ed, "The current buffer is not empty, data will may be lost. continue?")
+                    == USER_ANSWER_NO) {
+                goto error;
+            }
+        }
+
+        // copy the filename for buffer
+        //
+        memmove(buf->file.name, filename, filename_size);
+        buf->file.name_size = filename_size;
+        buf->file.name[buf->file.name_size] = 0;
+
 
         int fd = open(filename, O_RDONLY);
         if(fd == EACCES) {
@@ -70,8 +80,16 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
             goto error;
         }
 
+        // check if the file is read only.
+        //
+        if((buf->file.readonly = access(filename, W_OK) != F_OK)) {
+            printf("warning: file is read only.\n");
+        }
+
         printf("file descriptor: %i\n", fd);
 
+        // get the information about the file.
+        //
         struct stat sb;
         if(fstat(fd, &sb) != 0) {
             write_message(ed, ERROR_MSG, "Failed to get information about file '%s'\0", filename);
@@ -83,6 +101,7 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
             goto error_and_close;
         }
 
+
         struct timespec ts;
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts);
         size_t start_ns = ts.tv_nsec;
@@ -91,11 +110,10 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
         ptr = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 
         if(!ptr) {
-            fprintf(stderr, "failed to create new mapping.\n");
+            write_message(ed, ERROR_MSG, "'%s' failed to create new mapping.\0", __func__);
             perror("mmap");
             goto error_and_close;
         }
-
 
 
         buffer_clear_all(buf);
@@ -205,7 +223,7 @@ error_and_close:
         buffer_update_content_xoff(buf);
         
         buf->current = buf->lines[0];
-        buf->file_opened = 1;
+        buf->file.opened = 1;
     }
 
 error:
@@ -227,7 +245,7 @@ size_t write_file(struct editor_t* ed, unsigned int buf_id) {
     }
 
 
-    if(buf->filename_size == 0) {
+    if(buf->file.name_size == 0) {
         // TODO: ask to create the file.
         write_message(ed, ERROR_MSG, "no file to write into.\0");
         goto error;
@@ -235,9 +253,9 @@ size_t write_file(struct editor_t* ed, unsigned int buf_id) {
 
     // TODO: save a backup file before opening the file with O_TRUNC
 
-    int fd = open(buf->filename, O_WRONLY | O_APPEND | O_TRUNC);
+    int fd = open(buf->file.name, O_WRONLY | O_APPEND | O_TRUNC);
     if(fd == EACCES) {
-        write_message(ed, ERROR_MSG, "Write access denied. filename:'%s'\0", buf->filename);
+        write_message(ed, ERROR_MSG, "Write access denied. filename:'%s'\0", buf->file.name);
         goto error;
     }
 
@@ -264,7 +282,12 @@ size_t write_file(struct editor_t* ed, unsigned int buf_id) {
 
 error:
     
-    write_message(ed, INFO_MSG, "written %l bytes.\0", bytes_written);
+    if(bytes_written > 0) {
+        write_message(ed, INFO_MSG, "written %l bytes.\0", bytes_written);
+    }
+    else if(buf->file.readonly) {
+        write_message(ed, INFO_MSG, "Permission denied! read only file.\0");
+    }
 
     return bytes_written;
 }

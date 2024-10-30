@@ -15,14 +15,8 @@ void run_loop(struct editor_t* ed) {
     if(!ed->ready) { return; }
 
 
-    long int aaa = 28392839023;
-    char testc = aaa-1;
-
-    printf("%x, %li\n", testc, sizeof(testc));
-
-
-    read_file(ed, 0, "testf.txt", 9);
-    //read_file(ed, 1, "another_testf.txt", 17);
+    read_file(ed, 0, "for-testing/test.txt\0", 0);
+    //read_file(ed, 1, "for-testing/another_file.txt\0", 0);
 
     ed->num_active_buffers = 1;
     set_buffer_dimensions(ed);
@@ -35,41 +29,9 @@ void run_loop(struct editor_t* ed) {
         //struct buffer_t* buf = &ed->buffers[ed->current_buf_id];
 
 
-        draw_buffers(ed);
+        draw_everything(ed);
 
-        if(ed->mode == MODE_COMMAND_LINE) {
-            set_color_hex(ed, 0x231100);
-            draw_framed_rect(ed, 
-                    5, 3,
-                    ed->window_width-10, ed->font.char_h+8,
-                    0x554510,
-                    1.0,
-                    MAP_XYWH, DRW_NO_GRID);
-            
-            font_set_color_hex(&ed->font, 0x773310);
-            draw_char(ed, 10, 6, '>', DRW_NO_GRID);
-
-
-            // cmd_cursor
-            //
-            set_color_hex(ed, 0x225522);
-            draw_rect(ed, 
-                    10 + (ed->cmd_cursor+1) * ed->font.char_w,
-                    6,
-                    ed->font.char_w,
-                    ed->font.char_h,
-                    MAP_XYWH, DRW_NO_GRID);
-
-            font_set_color_hex(&ed->font, 0xAA6633);
-            draw_data(ed, ed->font.char_w+10, 6, 
-                    ed->cmd_str->data, ed->cmd_str->data_size, DRW_NO_GRID);
-        }
-
-
-        draw_error_buffer(ed);
-        draw_info_buffer(ed);
         do_safety_check(ed);
-
         ed->mouse_button = 0;
         glfwSwapBuffers(ed->win);
         glfwWaitEvents();
@@ -79,9 +41,9 @@ void run_loop(struct editor_t* ed) {
 
 
 int main(int argc, char** argv) {
+
     struct editor_t* ed = 
-        init_editor("Topaz-8.ttf",
-                1200, 750, !INIT_FULLSCREEN);
+        init_editor("Topaz-8.ttf", 1200, 750, !INIT_FULLSCREEN);
     
     if(ed) {
         run_loop(ed);

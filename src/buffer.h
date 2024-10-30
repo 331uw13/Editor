@@ -23,6 +23,13 @@ struct select_t { // TODO.
     struct string_t* end;
 };
 
+struct file_t {
+    int    opened;
+    char   name[BUFFER_MAX_FILENAME_SIZE+1];
+    size_t name_size;
+    int    readonly;
+};
+
 struct buffer_t {
     struct string_t** lines;
     size_t num_alloc_lines; // number of allocated lines.
@@ -31,6 +38,8 @@ struct buffer_t {
     int content_xoff; // used to offset the buffer content 
                       // so line numbers and content dont overlap
 
+    struct file_t file;
+    
     long int cursor_x;
     long int cursor_y;
     long int cursor_px;
@@ -46,12 +55,13 @@ struct buffer_t {
     struct select_t select;
     struct string_t* current; // &lines[buffer->cursor_y],
                               // set everytime move_cursor_to is called.
-    
     size_t scroll;
 
+    /*
     int     file_opened;
     char    filename[BUFFER_MAX_FILENAME_SIZE+1];
     size_t  filename_size;
+    */
 
     int id; // NOTE: buffer can be accessed from 'editor->buffers[id]'
     int ready;
