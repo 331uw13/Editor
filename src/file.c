@@ -57,7 +57,7 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
 
         if(buf->file.opened) {
             
-            if(confirm_user_choice(ed, "The current buffer is not empty, data will may be lost. continue?")
+            if(confirm_user_choice(ed, "The current buffer is not empty\ndata may be lost. continue?")
                     == USER_ANSWER_NO) {
                 goto error;
             }

@@ -9,10 +9,8 @@
 
 #define CMD_OPEN 6385555319     // "open <filename>"
 #define CMD_WRITE 210732889424  // "write"
-#define CMD_QDOT 5863684           // "q." close the editor.
+#define CMD_QDOT 5863684        // "q." close the editor without asking anything.
 
-
-// TODO: write(ed, bufid, filename, filenamesize);
 
 void execute_cmd(struct editor_t* ed, struct string_t* str) {
     if(!str) { return; }
@@ -66,6 +64,7 @@ void execute_cmd(struct editor_t* ed, struct string_t* str) {
             case CMD_WRITE:
                 write_file(ed, ed->current_buf_id);
                 break;
+
 
 
             default:

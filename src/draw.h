@@ -34,7 +34,7 @@ struct buffer_t;
 #define MAP_XYWH 1
 
 // 'use_grid'?
-// if used coordinates multiply by cell width/height
+// if used, coordinates multiply by cell width/height
 #define DRW_NO_GRID 0
 #define DRW_ONGRID  1
 

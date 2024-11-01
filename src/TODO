@@ -13,5 +13,6 @@
 *   color syntax
 *   colors can be changed
      (read colors from config to editor structure)
+*   ctrl+shift+o: open #include x file to new buffer
 
 
