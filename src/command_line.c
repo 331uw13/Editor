@@ -11,6 +11,8 @@
 #define CMD_WRITE 210732889424  // "write"
 #define CMD_QDOT 5863684        // "q." close the editor without asking anything.
 
+#define CMD_TEST1 210728875318  // "test1"
+#define CMD_TEST2 210728875319  // "test2"
 
 void execute_cmd(struct editor_t* ed, struct string_t* str) {
     if(!str) { return; }
@@ -48,7 +50,15 @@ void execute_cmd(struct editor_t* ed, struct string_t* str) {
     if(argc > 0) {
 
         switch(djb2_hash(args[0])) {
-            
+           
+            case CMD_TEST1:
+                read_file(ed, 0, "for-testing/another_file.txt\0", 0);
+                break;
+
+            case CMD_TEST2:
+                read_file(ed, 0, "for-testing/test.txt\0", 0);
+                break;
+
             case CMD_QDOT:
                 glfwSetWindowShouldClose(ed->win, GLFW_TRUE);
                 break;

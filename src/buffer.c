@@ -55,8 +55,9 @@ int create_buffer(struct buffer_t* buf, int id) {
     buf->cursor_x = 0;
     buf->cursor_y = 0;
     buf->cursor_px = 0;
+    buf->cursor_py = 0;
     buf->scroll = 0;
-
+    buf->prev_scroll = 0;
     buf->current = buf->lines[0];
     buf->ready = 1;
 
@@ -88,6 +89,7 @@ void delete_buffer(struct buffer_t* buf) {
         }
 
         buf->scroll = 0;
+        buf->prev_scroll = 0;
         buf->file.opened = 0;
         buf->ready = 0;
         buf->cursor_x = 0;
@@ -158,6 +160,7 @@ int buffer_clear_all(struct buffer_t* buf) {
         buf->num_alloc_lines = BUFFER_MEMORY_BLOCK_SIZE;
         
         buf->scroll = 0;
+        buf->prev_scroll = 0;
         buf->cursor_x = 0;
         buf->cursor_y = 0;
 
@@ -265,16 +268,25 @@ void buffer_scroll(struct buffer_t* buf, int offset) {
     buffer_scroll_to(buf, buf->scroll + offset);
 }
 
-
 void move_cursor_to(struct buffer_t* buf, long int col, long int row) {
     if(!buffer_ready(buf)) { return; }
 
     row = liclamp(row, 0, buf->num_used_lines);
 
-    if(row > (buf->scroll + buf->max_row)-1) {
-        buffer_scroll_to(buf, (buf->scroll + (row - buf->cursor_y)));
+    long int moved_up = (row < buf->cursor_y);
+    long int moved_down = (row > buf->cursor_y);
+
+    if(row > (buf->scroll + buf->max_row)-1 && moved_down) {
+
+        long int scr = buf->scroll + (row - buf->cursor_y);
+        if(scr == buf->prev_scroll) {
+            scr++;
+        }
+
+        buffer_scroll_to(buf, scr);
+        buf->prev_scroll = scr;
     }
-    else if(row < (buf->scroll)) {
+    else if(row < buf->scroll && moved_up) {
         buffer_scroll_to(buf, row);
     }
 
@@ -301,6 +313,7 @@ void move_cursor_to(struct buffer_t* buf, long int col, long int row) {
             
             buf->cursor_px = buf->cursor_x;
         }
+       
     }
 }
 
@@ -421,15 +434,11 @@ int buffer_add_newline(struct buffer_t* buf, size_t col, size_t row) {
     }
 
 
-    struct string_t* current = buf->lines[row];
+    struct string_t* current = buffer_get_string(buf, row);//buf->lines[row];
     struct string_t* below = buffer_get_string(buf, buf->cursor_y+1);
 
     if(!current || !below) {
         buf->ready = 0;
-        goto error;
-    }
-
-    if(current == below) {
         goto error;
     }
     
@@ -453,12 +462,13 @@ int buffer_add_newline(struct buffer_t* buf, size_t col, size_t row) {
             string_add_char(below, 0x20, 0);
         }
     }
+    
+    buf->cursor_px = 0;
 
     buffer_update_content_xoff(buf);
     move_cursor_to(buf, num_tabs, buf->cursor_y+1);
     ok = 1;
 
-    buf->cursor_px = 0;
 
 error:
     return ok;

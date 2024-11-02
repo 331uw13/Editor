@@ -82,6 +82,7 @@ int string_memcheck(struct string_t* str, size_t size) {
                 str->mem_size = new_size;
                 ok = 1;
                 //printf("resized string '%p' memory size to %li bytes\n", str, new_size);
+            
             }
             else {
                 fprintf(stderr, "failed to resize string data.\n");

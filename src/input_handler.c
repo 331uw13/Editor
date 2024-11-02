@@ -25,6 +25,8 @@ static void handle_backspace_key_on_buffer(struct editor_t* ed, struct buffer_t*
         size_t idx = (buf->cursor_x <= FONT_TAB_WIDTH) ? 0 : (buf->cursor_x - FONT_TAB_WIDTH);
         size_t num_spaces = string_num_chars(buf->current, idx, buf->cursor_x, 0x20);
 
+        buf->cursor_px = 0;
+
         if(num_spaces == FONT_TAB_WIDTH && is_on_end_of_tab(buf->cursor_x)) {
             string_cut_data(buf->current, idx, num_spaces);
             move_cursor(buf, -FONT_TAB_WIDTH, 0);

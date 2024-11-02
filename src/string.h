@@ -9,9 +9,11 @@
 
 
 struct string_t {
-    char* data;
+
+    char*  data;
     size_t mem_size;  // allocated memory size
     size_t data_size; // actual data size
+
 };
 
 

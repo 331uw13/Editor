@@ -43,6 +43,7 @@ struct buffer_t {
     long int cursor_x;
     long int cursor_y;
     long int cursor_px;
+    long int cursor_py;
 
     int max_row;
     int max_col;
@@ -56,6 +57,7 @@ struct buffer_t {
     struct string_t* current; // &lines[buffer->cursor_y],
                               // set everytime move_cursor_to is called.
     size_t scroll;
+    size_t prev_scroll;
 
     /*
     int     file_opened;

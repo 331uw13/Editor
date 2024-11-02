@@ -63,9 +63,9 @@ void  draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid
 void  draw_data(struct editor_t* ed, int x, int y, char* data, long int size, int use_grid);
 
 // uses line wrapping and \n character is not ignored
-// if use_grid is set to 1 max_x is treated as 'max_column'
+// if use_grid is set to 1 max_x is treated as max column
 // returns the amount of newlines.
-int   draw_data_w(struct editor_t* ed,
+size_t draw_data_w(struct editor_t* ed,
             int x, int y,
             char* data,
             long int size,

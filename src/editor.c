@@ -191,7 +191,7 @@ void set_buffer_dimensions(struct editor_t* ed) {
     const int cw = CELLW;
     const int ch = CELLH;
 
-    int max_width = ed->window_width / num_bufs;
+    int max_width = ed->window_width / num_bufs / 4;
     int max_height = ed->window_height - ch;
 
     for(int i = 0; i < num_bufs; i++) {
