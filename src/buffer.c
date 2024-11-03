@@ -276,11 +276,12 @@ void move_cursor_to(struct buffer_t* buf, long int col, long int row) {
     long int moved_up = (row < buf->cursor_y);
     long int moved_down = (row > buf->cursor_y);
 
-    if(row > (buf->scroll + buf->max_row)-1 && moved_down) {
 
-        long int scr = buf->scroll + (row - buf->cursor_y);
-        if(scr == buf->prev_scroll) {
-            scr++;
+    if(row >= (buf->scroll + buf->max_row) && moved_down) {
+        long int scr = row - buf->max_row + 1;
+
+        if(scr <= buf->prev_scroll) {
+            scr = buf->prev_scroll+1;
         }
 
         buffer_scroll_to(buf, scr);

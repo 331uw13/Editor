@@ -354,7 +354,7 @@ static void draw_buffer(
 
 
     for(size_t i = buf->scroll; i < buf->num_used_lines; i++) {
-        if(i >= buf->max_row + buf->scroll) {
+        if(i >= buf->max_row + buf->scroll + 1) {
             break;
         }
 
