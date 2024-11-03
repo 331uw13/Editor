@@ -261,6 +261,8 @@ void buffer_scroll_to(struct buffer_t* buf, size_t y) {
         }
         buf->scroll = liclamp(y, 
                 0, buf->num_used_lines - buf->max_row+5);
+
+        buf->prev_scroll = buf->scroll;
     }
 }
 
@@ -285,7 +287,6 @@ void move_cursor_to(struct buffer_t* buf, long int col, long int row) {
         }
 
         buffer_scroll_to(buf, scr);
-        buf->prev_scroll = scr;
     }
     else if(row < buf->scroll && moved_up) {
         buffer_scroll_to(buf, row);
