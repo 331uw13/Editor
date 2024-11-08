@@ -10,12 +10,16 @@ git clone https://github.com/331uw13/Editor.git
 cd Editor
 zig build && ./zig-out/bin/editor
 ```
+> you can also use gccbuild.sh
 
 ![Editor](https://github.com/331uw13/Editor/blob/main/screenshots/Editor_2024-10-26_18-49.png?raw=true)
 
 ## Keybinds
 | Key | Description |
 | --- | --- |
+| `ALT + C` | Replace mode |
+| `ALT + V` | Select mode |
+| `ALT + B` | Insert mode |
 | `CTRL + D` | Goto end of the line |
 | `CTRL + A` | Goto start of the line |
 | `CTRL + S` | Goto middle of the line |
@@ -23,8 +27,8 @@ zig build && ./zig-out/bin/editor
 | `CTRL + P` | Command line mode |
 | `CTRL + TAB` | Cycle through active buffers |
 | `CTRL + LEFT/RIGHT/UP/DOWN` | Movement multiplied by 4 |
-| `ALT + UP` | Goto start of the buffer |
-| `ALT + DOWN` | Goto end of the buffer |
+| `ALT + UP` | ~~Goto start of the buffer~~|
+| `ALT + DOWN` | ~~Goto end of the buffer~~ |
 | `SHIFT + LEFT/RIGHT` | Move by 1 word |
 | `SHIFT + UP/DOWN` | Move up/down but skip rows containing only whitespace |
 
