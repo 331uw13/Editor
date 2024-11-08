@@ -11,6 +11,10 @@
 
 
 static void handle_enter_key_on_buffer(struct editor_t* ed, struct buffer_t* buf) {
+    if(buf->mode != BUFMODE_INSERT
+    && buf->mode != BUFMODE_REPLACE) {
+        return;
+    }
     if(buffer_add_newline(buf, buf->cursor_x, buf->cursor_y)) {
         if(buf->cursor_y > (buf->scroll + ed->max_row)) {
             buffer_scroll(buf, -1);
@@ -19,6 +23,10 @@ static void handle_enter_key_on_buffer(struct editor_t* ed, struct buffer_t* buf
 }
 
 static void handle_backspace_key_on_buffer(struct editor_t* ed, struct buffer_t* buf) {
+    if(buf->mode != BUFMODE_INSERT
+    && buf->mode != BUFMODE_REPLACE) {
+        return;
+    }
     if(buf->cursor_x > 0) {
 
 
@@ -130,6 +138,7 @@ static void _key_mod_input_CONTROL(struct editor_t* ed, struct buffer_t* buf, in
 static void _key_mod_input_ALT(struct editor_t* ed, struct buffer_t* buf, int key) {
     switch(key) {
 
+        /*
         case GLFW_KEY_UP:
             ONLY_NORMAL_MODE;
             move_cursor_to(buf, 0, 0);
@@ -140,20 +149,26 @@ static void _key_mod_input_ALT(struct editor_t* ed, struct buffer_t* buf, int ke
             move_cursor_to(buf, 0, buf->num_used_lines-1);
             break;
 
-        case GLFW_KEY_S:
-            {
-                if(!string_ready(buf->current)) {
-                    return;
-                }
-                buf->select = (struct select_t) {
-                buf->cursor_x, buf->cursor_y, // begin position
-                    buf->cursor_x, buf->cursor_y, // end position
-                    buf->current, // begin string
-                    buf->current, // end string
-                };
-                
-                ed->mode = (ed->mode == MODE_SELECT) ? MODE_NORMAL : MODE_SELECT;
-            }
+TODO:   CTRL+SHIFT  up/down
+
+            */
+
+        case GLFW_KEY_V:
+            buffer_change_mode(buf, BUFMODE_SELECT);
+            buf->select = (struct select_t) {
+                .x0 = buf->cursor_x,
+                .y0 = buf->cursor_y,
+                .x1 = buf->cursor_x,
+                .y1 = buf->cursor_y
+            };
+            break;
+        
+        case GLFW_KEY_B:
+            buffer_change_mode(buf, BUFMODE_INSERT);
+            break;
+        
+        case GLFW_KEY_C:
+            buffer_change_mode(buf, BUFMODE_REPLACE);
             break;
 
         default:break;
@@ -309,6 +324,24 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
 
 
     if(mods) {
+        switch(mods) {
+            case GLFW_MOD_SHIFT:
+                _key_mod_input_SHIFT(ed, buf, key);
+                break;
+            
+            case GLFW_MOD_ALT:
+                _key_mod_input_ALT(ed, buf, key);
+                break;
+            
+            case GLFW_MOD_CONTROL:
+                _key_mod_input_CONTROL(ed, buf, key);
+                break;
+        }
+        return;  // TODO:  check multiple mod.
+    }
+
+
+    if(mods) {
 
         switch(mods) {
             case GLFW_MOD_SHIFT:
@@ -329,8 +362,9 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
 
     switch(ed->mode) {
 
-        case MODE_NORMAL: // text edit mode.
+        case MODE_NORMAL:
             {
+                
                 switch(key) {
 
                     case GLFW_KEY_LEFT:
@@ -348,7 +382,7 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
                     case GLFW_KEY_UP:
                         move_cursor(buf, 0, -1);
                         break;
-
+                        
 
 
                     case GLFW_KEY_ENTER:
@@ -371,43 +405,12 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
                         break;
 
                 }
-            }
-            break;
-   
-        case MODE_SELECT:
-            {
-                switch(key) {
-                    
-                    case GLFW_KEY_ESCAPE:
-                        ed->mode = MODE_NORMAL;
-                        break;
-
-
-                    case GLFW_KEY_LEFT:
-                        move_cursor(buf, -1, 0);
-                        buffer_update_selected(buf);
-                        break;
-
-                    case GLFW_KEY_RIGHT:
-                        move_cursor(buf, 1, 0);
-                        buffer_update_selected(buf);
-                        break;
-
-                    case GLFW_KEY_DOWN:
-                        move_cursor(buf, 0, 1);
-                        buffer_update_selected(buf);
-                        break;
-
-                    case GLFW_KEY_UP:
-                        move_cursor(buf, 0, -1);
-                        buffer_update_selected(buf);
-                        break;
-
-
+                if(buf->mode == BUFMODE_SELECT) {
+                    buffer_update_selected(buf);
                 }
             }
             break;
-
+   
         case MODE_COMMAND_LINE:
             {
                 switch(key) {
@@ -444,8 +447,8 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
             break;
 
     }
-}
 
+}
 
 void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
     struct editor_t* ed = glfwGetWindowUserPointer(win);
@@ -463,8 +466,29 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
                 if(!buffer_ready(buf)) {
                     return;
                 }
-                if(string_add_char(buf->current, codepoint, buf->cursor_x)) {
-                    move_cursor(buf, 1, 0);
+
+                switch(buf->mode) {
+                    case BUFMODE_SELECT:
+                        {
+                            printf("select mode commands are not implemented.\n");
+                        }
+                        break;
+
+                    case BUFMODE_INSERT:
+                        {
+                            if(string_add_char(buf->current, codepoint, buf->cursor_x)) {
+                                move_cursor(buf, 1, 0);
+                            }
+                        }
+                        break;
+
+                    case BUFMODE_REPLACE:
+                        {
+                            if(string_set_char(buf->current, codepoint, buf->cursor_x)) {
+                                move_cursor(buf, 1, 0);
+                            }
+                        }
+                        break;
                 }
             }
             break;
@@ -493,6 +517,7 @@ void scroll_input_handler(GLFWwindow* win, double xoff, double yoff) {
     move_cursor(buf, 0, iyoff);
 }
 
+/*
 void mouse_bttn_input_handler(GLFWwindow* win, int button, int action, int mods) {
     struct editor_t* ed = glfwGetWindowUserPointer(win);
     if(!ed) { return; }
@@ -501,6 +526,7 @@ void mouse_bttn_input_handler(GLFWwindow* win, int button, int action, int mods)
         ed->mouse_button = 1;
     }
 }
+*/
 
 
 

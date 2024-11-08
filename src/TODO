@@ -1,5 +1,9 @@
 
 
+
+*   no need to compute the positions everytime drawing something
+    create function to compute them and store it somewhere???+
+
 *   message type FATAL_ERROR_MSG, halt the program if these happen.
 *   error testing.
 *   select text

@@ -15,27 +15,22 @@ void run_loop(struct editor_t* ed) {
     if(!ed->ready) { return; }
 
 
-    //read_file(ed, 0, "for-testing/test.txt\0", 0);
-    read_file(ed, 0, "for-testing/another_file.txt\0", 0);
+    read_file(ed, 0, "for-testing/test.txt\0", 0);
+    read_file(ed, 1, "for-testing/another_file.txt\0", 0);
 
-    ed->num_active_buffers = 1;
+    ed->num_active_buffers = 2;
     set_buffer_dimensions(ed);
-
-
-    for(int i = 0; i < 15; i++) {
-        buffer_add_newline(&ed->buffers[ed->current_buf_id], 0, 0);
-    }
 
 
     while(!glfwWindowShouldClose(ed->win)) {
         glClear(GL_COLOR_BUFFER_BIT);
-        glfwGetCursorPos(ed->win, &ed->mouse_x, &ed->mouse_y);
+        //glfwGetCursorPos(ed->win, &ed->mouse_x, &ed->mouse_y);
 
 
         draw_everything(ed);
 
         do_safety_check(ed);
-        ed->mouse_button = 0;
+        //ed->mouse_button = 0;
         glfwSwapBuffers(ed->win);
         glfwWaitEvents();
     }
@@ -44,6 +39,7 @@ void run_loop(struct editor_t* ed) {
 
 
 int main(int argc, char** argv) {
+
 
     struct editor_t* ed = 
         init_editor("Topaz-8.ttf", 1200, 750,! INIT_FULLSCREEN);

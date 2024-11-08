@@ -9,7 +9,6 @@
 int create_buffer(struct buffer_t* buf, int id) {
     int ok = 0;
 
-
     if(!buf) {
         goto error;
     }
@@ -34,7 +33,27 @@ int create_buffer(struct buffer_t* buf, int id) {
     buf->max_row = 0;
     buf->x = 0;
     buf->y = 0;
+
     buf->content_xoff = 0;
+    buf->num_alloc_lines = allocated_lines;
+    buf->num_used_lines = 1;
+    buf->cursor_x = 0;
+    buf->cursor_y = 0;
+    buf->cursor_px = 0;
+    buf->cursor_py = 0;
+    buf->scroll = 0;
+    buf->prev_scroll = 0;
+    buf->ready = 1;
+
+    buf->max_row = 1;  // these are set in 'editor.c' set_buffer_dimensions()
+    buf->max_col = 1;  // ^
+    buf->width = 64;   // ^
+    buf->height = 64;  // ^
+
+    buf->select = (struct select_t) { 0, 0, 0, 0, NULL, NULL };
+    buf->file = (struct buffer_file_t) { 0, {0}, 0, 0};
+    
+    buffer_change_mode(buf, BUFMODE_INSERT);
 
     buf->lines = malloc(mem_size);
     if(!buf->lines) {
@@ -48,26 +67,8 @@ int create_buffer(struct buffer_t* buf, int id) {
             goto error;
         }
     }
-
-    buf->num_alloc_lines = allocated_lines;
-    buf->num_used_lines = 1;
-
-    buf->cursor_x = 0;
-    buf->cursor_y = 0;
-    buf->cursor_px = 0;
-    buf->cursor_py = 0;
-    buf->scroll = 0;
-    buf->prev_scroll = 0;
+    
     buf->current = buf->lines[0];
-    buf->ready = 1;
-
-    buf->max_row = 1;
-    buf->max_col = 1;
-    buf->width = 64;
-    buf->height = 64;
-
-    buf->select = (struct select_t) { 0, 0, 0, 0, NULL, NULL };
-    buf->file = (struct file_t) { 0, {0}, 0, 0};
     buffer_update_content_xoff(buf);
 
     ok = 1;
@@ -101,6 +102,20 @@ void delete_buffer(struct buffer_t* buf) {
     }
 }
 
+void buffer_change_mode(struct buffer_t* buf, unsigned int bufmode) {
+    if(bufmode >= BUFMODE_INVALID) {
+        fprintf(stderr, "invalid mode(%i) for buffer %i\n", bufmode, buf->id);
+        return;
+    }
+
+    buf->mode = bufmode;
+    memmove(buf->mode_indicstr,
+            BUFFER_MODE_INDICATORS[bufmode],
+            BUFFER_MODE_INDICSIZE
+            );
+}
+
+
 void buffer_update_content_xoff(struct buffer_t* buf) {
     if(buffer_ready(buf)) {
         char tmpbuf[LINENUM_BUF_SIZE] = {0};
@@ -109,11 +124,14 @@ void buffer_update_content_xoff(struct buffer_t* buf) {
     }
 }
 
+
 void buffer_update_selected(struct buffer_t* buf) {
-    buf->select.x1 = buf->cursor_x;
-    buf->select.y1 = buf->cursor_y;
-    buf->select.end = buffer_get_string(buf, buf->select.y1);
+    if(buffer_ready(buf)) {
+        buf->select.x1 = buf->cursor_x;
+        buf->select.y1 = buf->cursor_y;
+    }
 }
+
 
 int buffer_ready(struct buffer_t* buf) {
     int res = 0;

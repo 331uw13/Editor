@@ -515,7 +515,7 @@ struct editor_t* init_editor(const char* fontfile,
     glfwSetKeyCallback    (ed->win, key_input_handler);
     glfwSetCharCallback   (ed->win, char_input_handler);
     glfwSetScrollCallback (ed->win, scroll_input_handler);
-    glfwSetMouseButtonCallback (ed->win, mouse_bttn_input_handler);
+    //glfwSetMouseButtonCallback (ed->win, mouse_bttn_input_handler);
     glfwGetWindowSize(ed->win, &ed->window_width, &ed->window_height);
 
     

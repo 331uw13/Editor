@@ -19,15 +19,30 @@ struct select_t { // TODO.
     long int x1; // end position
     long int y1; //
 
-    struct string_t* begin;
-    struct string_t* end;
 };
 
-struct file_t {
+struct buffer_file_t {
     int    opened;
     char   name[BUFFER_MAX_FILENAME_SIZE+1];
     size_t name_size;
     int    readonly;
+};
+
+#define BUFMODE_INSERT 0
+#define BUFMODE_SELECT 1
+#define BUFMODE_REPLACE 2
+#define BUFMODE_INVALID 3
+
+#define BUFFER_MODE_INDICSIZE 3
+static const char BUFFER_MODE_INDICATORS[][BUFFER_MODE_INDICSIZE] = {
+    "[i]",  // insert
+    "[s]",  // select
+    "[r]"   // replace
+};
+static const unsigned int BUFFER_MODE_INDICCOLORS[] = {
+    0x1aba37, // insert
+    0xb848a5, // select
+    0xe65b20  // replace
 };
 
 struct buffer_t {
@@ -38,15 +53,15 @@ struct buffer_t {
     int content_xoff; // used to offset the buffer content 
                       // so line numbers and content dont overlap
 
-    struct file_t file;
+    struct buffer_file_t file;
     
     long int cursor_x;
     long int cursor_y;
     long int cursor_px;
     long int cursor_py;
 
-    int max_row;
-    int max_col;
+    int max_row; // TODO rename.
+    int max_col; //  (max_screen_row/col)
     
     int x;
     int y;
@@ -58,12 +73,9 @@ struct buffer_t {
                               // set everytime move_cursor_to is called.
     size_t scroll;
     size_t prev_scroll;
-
-    /*
-    int     file_opened;
-    char    filename[BUFFER_MAX_FILENAME_SIZE+1];
-    size_t  filename_size;
-    */
+    
+    int mode;
+    char mode_indicstr[BUFFER_MODE_INDICSIZE];
 
     int id; // NOTE: buffer can be accessed from 'editor->buffers[id]'
     int ready;
@@ -78,11 +90,13 @@ void   buffer_reset(struct buffer_t* buf);
 int    buffer_clear_all(struct buffer_t* buf);
 // TODO: 'buffer_clear(buf, start_y, end_y);
 
+void   buffer_change_mode(struct buffer_t* buf, unsigned int bufmode);
+
 // check if buffer needs more memory.
 //   returns 1 if no more memory is needed or memory is resized.
 //   returns 0 if failed to resize memory.
 // size_t n is the "new size"
-int    buffer_memcheck(struct buffer_t* buf, size_t n);
+int   buffer_memcheck(struct buffer_t* buf, size_t n);
 
 // this calls 'buffer_memcheck' and
 // increments/decrements the 'num_used_lines'

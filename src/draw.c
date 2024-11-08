@@ -277,19 +277,24 @@ size_t draw_data_w(struct editor_t* ed,
     return _draw_data_r(ed, x, y, data, size, use_grid, 1, max_x);
 }
 
+
+// _A brighter color / when it is active
+// _B dimmer color
+//
 #define FRAME_COLOR_A    0x00AAEE
 #define FRAME_COLOR_B    0x003344
 #define FRAME_COLOR_BG   0x101111
-#define FILENAME_COLOR_A 0x70A0A0
+#define FILENAME_COLOR_A 0x90A0E0
 #define FILENAME_COLOR_B 0x203030
-#define BAR_COLOR_A      0x102020
-#define BAR_COLOR_B      0x081515
+#define BAR_COLOR_A      0x041624
+#define BAR_COLOR_B      0x03101a
 #define CURSOR_COLOR_A   0x10EE10
 #define CURSOR_COLOR_B   0x104410
 #define DATA_COLOR       0xFFEEAA
 #define LINENUM_COLOR_A  0x406040
 #define LINENUM_COLOR_B  0x252525
 #define READONLY_COLOR   0xA34514
+#define BUFFER_MODEI_COLOR 0x278a8f
 
 
 static void draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf, int is_current) {
@@ -306,6 +311,8 @@ static void draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf, int is_
             buf->height,
             MAP_XYWH, DRW_NO_GRID);
 
+
+
     // filename stuff
     //
     set_color_hex(ed, is_current ? BAR_COLOR_A : BAR_COLOR_B);
@@ -315,14 +322,24 @@ static void draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf, int is_
             buf->width,
             CELLH,
             MAP_XYWH, DRW_NO_GRID);
-
+   
     font_set_color_hex(&ed->font, is_current ? FILENAME_COLOR_A : FILENAME_COLOR_B);
     draw_data(ed,
-            buf->x + 10,
+            buf->x + CELLW*3 + 15,
             buf->y + buf->height,
             buf->file.name,
             buf->file.name_size,
             DRW_NO_GRID);
+
+    // mode stuff.
+    // 
+    font_set_color_hex(&ed->font, BUFFER_MODE_INDICCOLORS[buf->mode]);
+    draw_data(ed,
+            buf->x + 10,
+            buf->y + buf->height,
+            buf->mode_indicstr, BUFFER_MODE_INDICSIZE,
+            DRW_NO_GRID);
+
 
     if(buf->file.readonly) {
         font_set_color_hex(&ed->font, READONLY_COLOR);
@@ -417,14 +434,13 @@ static void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
         x = x % m;
 
         y += k;
-    
     }
     */
 
     x *= cw;
-    x += buf->x;
-
     y *= ch;
+    
+    x += buf->x;
     y += buf->y;
 
 
@@ -456,11 +472,62 @@ static void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
             MAP_XYWH, DRW_NO_GRID);
 }
 
+#define SELECT_COLOR 0xA33B72
+
 static void draw_selected(struct editor_t* ed, struct buffer_t* buf) {
-    if((ed->mode != MODE_SELECT) || (buf->id != ed->current_buf_id)) {
-        return;
+    const int cw = CELLW;
+    const int ch = CELLH;
+    
+    set_color_hex(ed, SELECT_COLOR);
+    
+    long int gap = (buf->select.y1 - buf->select.y0);
+    
+    long int start = buf->select.y0;
+    long int end = buf->select.y0 + gap;
+
+    for(long int i = start; i < end; i++) {
+        struct string_t* line = buffer_get_string(buf, i);
+        if(line) {
+
+            int x = buf->content_xoff;
+            int y = i - buf->scroll;
+
+            x *= cw;
+            y *= ch;
+
+            x += buf->x;
+            y += buf->y;
+
+            draw_rect(ed,
+                    x, y,
+                    line->data_size * cw, ch,
+                    MAP_XYWH,
+                    DRW_NO_GRID);
+        }
     }
 
+
+
+
+    /*
+    int x = buf->select.x0 + buf->content_xoff;
+    int y = buf->select.y0;
+
+    x *= cw;
+    y *= ch;
+
+    x += buf->x;
+    y += buf->y;
+
+    set_color_hex(ed, SELECT_COLOR);
+    
+    
+    draw_rect(ed,
+            x, y,
+            cw, ch,
+            MAP_XYWH, DRW_NO_GRID
+            );
+            */
 }
 
 void draw_buffers(struct editor_t* ed) {
@@ -478,8 +545,12 @@ void draw_buffers(struct editor_t* ed) {
 
         draw_buffer_frame(ed, buf, i == ed->current_buf_id);
         draw_cursor(ed, buf);
+        
+        if(buf->mode == BUFMODE_SELECT) {
+            draw_selected(ed, buf);
+        }
+        
         draw_buffer(ed, buf, linenum_buf);
-
 
     }
 

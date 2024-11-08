@@ -3,9 +3,7 @@
 
 /*
 
-
    https://github.com/331uw13/Editor
-
 
 */
 
@@ -35,11 +33,11 @@
 #define CELLH (ed->font.char_h * EDITOR_TEXT_Y_SPACING)
 
 // Modes
-//
+// .. when MODE_NORMAL is used, the current buffer's mode is actually the one being used.
 #define MODE_NORMAL 0
-#define MODE_SELECT 1
-#define MODE_COMMAND_LINE 2
-#define MODE_CONFIRM_CHOICE 3
+#define MODE_COMMAND_LINE 1
+#define MODE_CONFIRM_CHOICE 2
+
 
 struct editor_t {
 
@@ -75,9 +73,11 @@ struct editor_t {
     struct string_t* cmd_str;    // for command line.
     long int         cmd_cursor; //
 
+    /*
     double mouse_x;
     double mouse_y;
     int    mouse_button; // 1 if left mouse button was pressed.
+    */
 
     // set to 1 if init_editor() returns with pointer,
     //                           GLFW is initialized and everything should be fine.

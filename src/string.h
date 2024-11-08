@@ -31,6 +31,7 @@ int     string_ready(struct string_t* str);
 int string_memcheck(struct string_t* str, size_t size);
 
 int     string_add_char(struct string_t* str, char c, size_t index);
+int     string_set_char(struct string_t* str, char c, size_t index);
 int     string_rem_char(struct string_t* str, size_t index);
 int     string_append_char(struct string_t* str, char c);
 

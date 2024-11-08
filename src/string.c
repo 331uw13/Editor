@@ -120,6 +120,21 @@ error:
     return ok;
 }
 
+int string_set_char(struct string_t* str, char c, size_t index) {
+    int ok = 0;
+
+    if(string_ready(str)) {
+        
+        if(index < str->data_size) {
+            str->data[index] = c;
+        }
+
+        ok = 1;
+    }
+
+    return ok;
+}
+
 int string_rem_char(struct string_t* str, size_t index) {
     int ok = 0;
     if(string_ready(str)) {
