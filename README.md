@@ -3,6 +3,8 @@
 > [!WARNING]
 > The Editor is not finished. It needs alot more work to be done.
 
+### Dependencies
+> OpenGL, GLFW, Freetype
 
 #### Run the commands to test the application:
 ```bash
