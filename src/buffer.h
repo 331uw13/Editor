@@ -11,7 +11,7 @@
 #define BUFFER_MAX_FILENAME_SIZE 256
 
 
-struct select_t { // TODO.
+struct select_t {
     
     long int x0; // begin position
     long int y0; //
@@ -19,6 +19,7 @@ struct select_t { // TODO.
     long int x1; // end position
     long int y1; //
 
+    int inverted;
 };
 
 struct buffer_file_t {
@@ -98,8 +99,6 @@ void   buffer_change_mode(struct buffer_t* buf, unsigned int bufmode);
 // size_t n is the "new size"
 int   buffer_memcheck(struct buffer_t* buf, size_t n);
 
-// this calls 'buffer_memcheck' and
-// increments/decrements the 'num_used_lines'
 //   returns 0 on failure.
 //   returns 1 on success or no need for change.
 int buffer_inc_size(struct buffer_t* buf, size_t n);
@@ -107,6 +106,26 @@ int buffer_dec_size(struct buffer_t* buf, size_t n);
 
 void  buffer_scroll_to(struct buffer_t* buf, size_t y);
 void  buffer_scroll   (struct buffer_t* buf, int offset);
+
+// process selected region line by line.
+//   in callback function: 
+//   if something unexpected happens return 0 to cancel processing the rest
+//   otherwise return 1 to continue.
+//
+// TODO explain here.
+//
+#define PROCSELECTED_BEGIN 1  // flags
+#define PROCSELECTED_END 2    //
+void buffer_swap_selected(struct buffer_t* buf);
+void buffer_proc_selected_reg(struct buffer_t* buf, void* userptr,
+        int(*callback)
+        (
+            struct buffer_t*, 
+            struct string_t*, 
+            size_t, // line y postion / index
+            int,    // flag
+            void*   // user pointer
+        ));
 
 // NOTE: 'move_cursor_to' sets the scroll if row is offscreen
 void  move_cursor_to(struct buffer_t* buf, long int col, long int row);

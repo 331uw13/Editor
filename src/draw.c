@@ -474,23 +474,101 @@ static void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
 
 #define SELECT_COLOR 0xA33B72
 
-static void draw_selected(struct editor_t* ed, struct buffer_t* buf) {
+static int gtest = 0;
+
+static int test_selected_callback(
+        struct buffer_t* buf,
+        struct string_t* line,
+        size_t line_y,
+        int flag,
+        void* userptr
+        )
+{
+    int res = 0;
+    struct editor_t* ed = (struct editor_t*) userptr;
+    if(!ed) {
+        goto done;
+    }
+
     const int cw = CELLW;
     const int ch = CELLH;
-    
+
     set_color_hex(ed, SELECT_COLOR);
+
+
+    long int y = line_y - buf->scroll;
+    long int x = buf->content_xoff;
+    long int width = line->data_size;
+
+
+    if((flag & PROCSELECTED_BEGIN)) {
+        x += buf->select.x0;
+        width -= buf->select.x0;
+    }
+
+    if((flag & PROCSELECTED_END)) {
+        width = buf->content_xoff + buf->select.x1 - x;
+    }
+
+
+    x *= cw;
+    y *= ch;
+    x += buf->x;
+    y += buf->y;
+
+    width = liclamp(width, 1, line->data_size);
+
+    draw_rect(ed,
+            x, y,
+            width*cw, ch,
+            MAP_XYWH, DRW_NO_GRID);
+
+
+    res = 1;
+
+done:
+    return res;
+}
+
+
+static void draw_selected(struct editor_t* ed, struct buffer_t* buf) {
+
+    buffer_proc_selected_reg(buf, ed, test_selected_callback);
+
+    /*
+    const int cw = CELLW;
+    const int ch = CELLH;
+    set_color_hex(ed, SELECT_COLOR);
+
+
+    long int a = buf->select.y0;
+    long int b = buf->select.y1;
+
+    if(b < a) {
+        long int tmp = 0;
+        tmp = b;
+        b = a;
+        a = tmp + 1;
+    }
     
-    long int gap = (buf->select.y1 - buf->select.y0);
+    const long int gap = b - a;
     
-    long int start = buf->select.y0;
-    long int end = buf->select.y0 + gap;
+    long int start = a;
+    long int end   = a + gap;
 
     for(long int i = start; i < end; i++) {
         struct string_t* line = buffer_get_string(buf, i);
         if(line) {
 
+
             int x = buf->content_xoff;
             int y = i - buf->scroll;
+            size_t width = line->data_size;
+
+            if(i == start) {
+                x += buf->select.x0;
+                width -= buf->select.x0;
+            }
 
             x *= cw;
             y *= ch;
@@ -498,36 +576,17 @@ static void draw_selected(struct editor_t* ed, struct buffer_t* buf) {
             x += buf->x;
             y += buf->y;
 
+            width = liclamp(width, 1, line->data_size);
+
             draw_rect(ed,
                     x, y,
-                    line->data_size * cw, ch,
+                    width * cw, ch,
                     MAP_XYWH,
                     DRW_NO_GRID);
         }
     }
+    */
 
-
-
-
-    /*
-    int x = buf->select.x0 + buf->content_xoff;
-    int y = buf->select.y0;
-
-    x *= cw;
-    y *= ch;
-
-    x += buf->x;
-    y += buf->y;
-
-    set_color_hex(ed, SELECT_COLOR);
-    
-    
-    draw_rect(ed,
-            x, y,
-            cw, ch,
-            MAP_XYWH, DRW_NO_GRID
-            );
-            */
 }
 
 void draw_buffers(struct editor_t* ed) {

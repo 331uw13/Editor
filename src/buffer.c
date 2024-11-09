@@ -50,7 +50,7 @@ int create_buffer(struct buffer_t* buf, int id) {
     buf->width = 64;   // ^
     buf->height = 64;  // ^
 
-    buf->select = (struct select_t) { 0, 0, 0, 0, NULL, NULL };
+    buf->select = (struct select_t) { 0, 0, 0, 0, 0 };
     buf->file = (struct buffer_file_t) { 0, {0}, 0, 0};
     
     buffer_change_mode(buf, BUFMODE_INSERT);
@@ -124,13 +124,6 @@ void buffer_update_content_xoff(struct buffer_t* buf) {
     }
 }
 
-
-void buffer_update_selected(struct buffer_t* buf) {
-    if(buffer_ready(buf)) {
-        buf->select.x1 = buf->cursor_x;
-        buf->select.y1 = buf->cursor_y;
-    }
-}
 
 
 int buffer_ready(struct buffer_t* buf) {
@@ -287,6 +280,79 @@ void buffer_scroll_to(struct buffer_t* buf, size_t y) {
 void buffer_scroll(struct buffer_t* buf, int offset) {
     buffer_scroll_to(buf, buf->scroll + offset);
 }
+
+void buffer_update_selected(struct buffer_t* buf) {
+    if(buffer_ready(buf)) {
+
+        if(!buf->select.inverted) {
+            buf->select.x1 = buf->cursor_x;
+            buf->select.y1 = buf->cursor_y;
+        }
+        else {
+            buf->select.x0 = buf->cursor_x;
+            buf->select.y0 = buf->cursor_y;
+        }
+    }
+}
+
+void buffer_swap_selected(struct buffer_t* buf) {
+    long int tmp = 0;
+
+    tmp = buf->select.y0;
+    buf->select.y0 = buf->select.y1;
+    buf->select.y1 = tmp;
+
+    tmp = buf->select.x0;
+    buf->select.x0 = buf->select.x1;
+    buf->select.x1 = tmp;
+
+    buf->select.inverted =! buf->select.inverted;
+}
+
+void buffer_proc_selected_reg(
+        struct buffer_t* buf, void* userptr,
+        int(*callback)(struct buffer_t*, struct string_t*, size_t, int, void*))
+{
+
+    if(!buffer_ready(buf) || (callback == NULL)) {
+        return;
+    }
+
+
+    if((buf->select.y1 < buf->select.y0)
+    || ((buf->select.x1 < buf->select.x0) && (buf->select.y1 == buf->select.y0))) {
+        buffer_swap_selected(buf);
+    }
+
+    
+    long int a = buf->select.y0;
+    long int b = buf->select.y1;
+
+    long int gap = b - a;
+    long int end = a + gap;
+
+    for(long int i = a; i <= end; i++) {
+        struct string_t* line = buffer_get_string(buf, i);
+        if(!line) {
+            continue;
+        }
+
+        int flag = 0;
+        if(i == a) {
+            flag |= PROCSELECTED_BEGIN;
+        }
+        if(i == end) {
+            flag |= PROCSELECTED_END;
+        }
+
+        if(!callback(buf, line, i, flag, userptr)) {
+            break;
+        }
+    }
+    
+
+}
+
 
 void move_cursor_to(struct buffer_t* buf, long int col, long int row) {
     if(!buffer_ready(buf)) { return; }
