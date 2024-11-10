@@ -14,7 +14,7 @@ zig build && ./zig-out/bin/editor
 ```
 > you can also use gccbuild.sh
 
-![Editor](https://github.com/331uw13/Editor/blob/main/screenshots/Editor_2024-10-26_18-49.png?raw=true)
+![Editor](https://github.com/331uw13/Editor/blob/main/screenshots/Editor_2024-11-10_04-09.png?raw=true)
 
 ## Keybinds
 | Key | Description |
@@ -38,3 +38,11 @@ zig build && ./zig-out/bin/editor
 `q.` quit without asking to save
 
 `open <path>` read file to current buffer
+
+`open-new` read file to new buffer
+
+`write` save file
+
+`write <new filename>` create a new file 
+
+`resetbuf` reset the current buffer
