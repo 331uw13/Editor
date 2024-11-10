@@ -87,7 +87,7 @@ static void _key_mod_input_CONTROL(struct editor_t* ed, struct buffer_t* buf, in
 
 
         case GLFW_KEY_W:
-            write_file(ed, buf->id);
+            write_file(ed, buf->id, NULL);
             break;
 
         case GLFW_KEY_P:
@@ -313,6 +313,16 @@ static void _key_mod_input_SHIFT(struct editor_t* ed, struct buffer_t* buf, int 
     // -- SHIFT
 }
 
+
+static void _key_mod_input_SHIFTCTRL(struct editor_t* ed, struct buffer_t* buf, int key) {
+    
+    switch(key) {
+    
+
+    }
+
+}
+
 void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int mods) {
     struct editor_t* ed = glfwGetWindowUserPointer(win);
     
@@ -324,6 +334,8 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
 
 
     if(mods) {
+
+
         switch(mods) {
             case GLFW_MOD_SHIFT:
                 _key_mod_input_SHIFT(ed, buf, key);
@@ -335,30 +347,18 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
             
             case GLFW_MOD_CONTROL:
                 _key_mod_input_CONTROL(ed, buf, key);
+                break;
+
+            default:
+
+                if((mods & GLFW_MOD_SHIFT) && (mods & GLFW_MOD_CONTROL)) {
+                    _key_mod_input_SHIFTCTRL(ed, buf, key);
+                }
                 break;
         }
         return;  // TODO:  check multiple mod.
     }
 
-
-    if(mods) {
-
-        switch(mods) {
-            case GLFW_MOD_SHIFT:
-                _key_mod_input_SHIFT(ed, buf, key);
-                break;
-            
-            case GLFW_MOD_ALT:
-                _key_mod_input_ALT(ed, buf, key);
-                break;
-            
-            case GLFW_MOD_CONTROL:
-                _key_mod_input_CONTROL(ed, buf, key);
-                break;
-        }
-
-        return;
-    }
 
     switch(ed->mode) {
 
@@ -404,9 +404,6 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
                         string_rem_char(buf->current, buf->cursor_x+1);
                         break;
 
-                }
-                if(buf->mode == BUFMODE_SELECT) {
-                    buffer_update_selected(buf);
                 }
             }
             break;

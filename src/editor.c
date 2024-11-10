@@ -518,6 +518,7 @@ struct editor_t* init_editor(const char* fontfile,
     //glfwSetMouseButtonCallback (ed->win, mouse_bttn_input_handler);
     glfwGetWindowSize(ed->win, &ed->window_width, &ed->window_height);
 
+    glfwSetInputMode(ed->win, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
     
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

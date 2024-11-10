@@ -1,22 +1,27 @@
 
 
+*   save a backup file on read and write.
 
 *   no need to compute the positions everytime drawing something
     create function to compute them and store it somewhere???+
 
 *   message type FATAL_ERROR_MSG, halt the program if these happen.
+
 *   error testing.
-*   select text
+
 *   verify memchecks are working well.
-*   readonly mode
-*   confirm clearing the buffer if it has data in it
+
 *   buffer linewrap
-*   allocated memory size for buffers and strings should be able to be decrement
-*   titles and frames for buffers.
+
+*   allocated memory size for buffers and strings should be able to decrement (sometimes)
+
 *   file browser
+
 *   color syntax
+
 *   colors can be changed
      (read colors from config to editor structure)
+
 *   ctrl+shift+o: open #include x file to new buffer
 
 

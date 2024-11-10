@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "editor.h"
 #include "file.h"
@@ -10,6 +11,8 @@
 #define CMD_OPEN 6385555319     // "open <filename>"
 #define CMD_WRITE 210732889424  // "write"
 #define CMD_QDOT 5863684        // "q." close the editor without asking anything.
+#define CMD_OPEN_NEW 7572764151204206 // "open-new" open file to new buffer
+#define CMD_RESET_BUFFER 7572878340146661  // "resetbuf"
 
 #define CMD_TEST1 210728875318  // "test1"
 #define CMD_TEST2 210728875319  // "test2"
@@ -47,20 +50,44 @@ void execute_cmd(struct editor_t* ed, struct string_t* str) {
         }
     }
 
+    struct buffer_t* buf = &ed->buffers[ed->current_buf_id];
+
     if(argc > 0) {
 
         switch(djb2_hash(args[0])) {
            
             case CMD_TEST1:
-                read_file(ed, 0, "for-testing/another_file.txt\0", 0);
+                read_file(ed, ed->current_buf_id, "for-testing/another_file.txt\0", 0);
                 break;
 
             case CMD_TEST2:
-                read_file(ed, 0, "for-testing/test.txt\0", 0);
+                read_file(ed, ed->current_buf_id, "for-testing/test.txt\0", 0);
                 break;
 
             case CMD_QDOT:
                 glfwSetWindowShouldClose(ed->win, GLFW_TRUE);
+                break;
+
+            case CMD_RESET_BUFFER:
+                if(buf->num_used_lines > 0
+                && confirm_user_choice(ed, "Reset the current buffer?\nData may be lost.\0")
+                  == USER_ANSWER_NO) {
+                    goto done;
+                }
+                buffer_reset(&ed->buffers[ed->current_buf_id]);
+                break;
+
+            case CMD_OPEN_NEW:
+                if(argc < 2) {
+                    write_message(ed, ERROR_MSG, "Usage: open-new <filename>\0");
+                    goto done;
+                }
+                if(ed->num_active_buffers+1 >= MAX_BUFFERS) {
+                    write_message(ed, ERROR_MSG, "Oops, max buffers reached.\0");
+                    goto done;
+                }
+                read_file(ed, ed->num_active_buffers++, args[1], strlen(args[1]));
+                set_buffer_dimensions(ed);
                 break;
 
             case CMD_OPEN:
@@ -72,7 +99,17 @@ void execute_cmd(struct editor_t* ed, struct string_t* str) {
                 break;
 
             case CMD_WRITE:
-                write_file(ed, ed->current_buf_id);
+                if(argc < 2) {
+                    write_file(ed, ed->current_buf_id, NULL);
+                }
+                else if (argc == 2) {
+                    if(access(args[1], F_OK) != 0) {
+                        if(confirm_user_choice(ed, "Create new file?") == USER_ANSWER_NO) {
+                            goto done;
+                        }
+                    }
+                    write_file(ed, ed->current_buf_id, args[1]);
+                }
                 break;
 
 

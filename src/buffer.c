@@ -147,9 +147,22 @@ void buffer_reset(struct buffer_t* buf) {
         }
 
         int id = buf->id;
+        int x = buf->x;
+        int y = buf->y;
+        int width = buf->width;
+        int height = buf->height;
+        int max_row = buf->max_row;
+        int max_col = buf->max_col;
 
         delete_buffer(buf);
         create_buffer(buf, id);
+
+        buf->x = x;
+        buf->y = y;
+        buf->width = width;
+        buf->height = height;
+        buf->max_row = max_row;
+        buf->max_col = max_col;
 
     }
 }
@@ -192,7 +205,6 @@ int buffer_clear_all(struct buffer_t* buf) {
         }
 
         buf->num_used_lines = 1;
-        printf("cleared buffer %i.\n", buf->id);
     }
 
 error:
@@ -400,6 +412,10 @@ void move_cursor_to(struct buffer_t* buf, long int col, long int row) {
             buf->cursor_px = buf->cursor_x;
         }
        
+    }
+
+    if(buf->mode == BUFMODE_SELECT) {
+        buffer_update_selected(buf);
     }
 }
 

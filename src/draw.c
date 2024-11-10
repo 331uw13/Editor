@@ -295,8 +295,8 @@ size_t draw_data_w(struct editor_t* ed,
 #define LINENUM_COLOR_B  0x252525
 #define READONLY_COLOR   0xA34514
 #define BUFFER_MODEI_COLOR 0x278a8f
-
-
+#define SELECT_COLOR       0x661d43 
+#define SELECT_CURSOR_COLOR 0xA33B72
 static void draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf, int is_current) {
     if(!buffer_ready(buf)) {
         return;
@@ -444,39 +444,47 @@ static void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
     y += buf->y;
 
 
+    if(buf->mode != BUFMODE_SELECT) {
+        
+        // cursor background
+        //
+        set_color_hex(ed, CURSOR_COLOR_B);
+        draw_rect(ed, x, y, cw, ch, MAP_XYWH, DRW_NO_GRID);
 
-    // cursor background
-    //
-    set_color_hex(ed, CURSOR_COLOR_B);
-    draw_rect(ed, x, y, cw, ch, MAP_XYWH, DRW_NO_GRID);
+
+        set_color_hex(ed, CURSOR_COLOR_A);
+        
+        // cursor line below
+        //
+        draw_rect(ed, 
+                x,
+                y + ch-1,
+                cw,
+                2,
+                MAP_XYWH, DRW_NO_GRID);
+
+        // cursor line right side
+        //
+        draw_rect(ed,
+                x + cw - 1,
+                y + ch/2 - 2,
+                2,
+                ch/2 + 2,
+                MAP_XYWH, DRW_NO_GRID);
+    }
+    else {
+        
+        set_color_hex(ed, SELECT_CURSOR_COLOR);
 
 
-    set_color_hex(ed, CURSOR_COLOR_A);
-    
-    // cursor line below
-    //
-    draw_rect(ed, 
-            x,
-            y + ch-1,
-            cw,
-            2,
-            MAP_XYWH, DRW_NO_GRID);
+        draw_rect(ed, x, y, cw, ch, MAP_XYWH, DRW_NO_GRID);
 
-    // cursor line right side
-    //
-    draw_rect(ed,
-            x + cw - 1,
-            y + ch/2 - 2,
-            2,
-            ch/2 + 2,
-            MAP_XYWH, DRW_NO_GRID);
+
+    }
 }
 
-#define SELECT_COLOR 0xA33B72
 
-static int gtest = 0;
-
-static int test_selected_callback(
+static int draw_selected_callback(
         struct buffer_t* buf,
         struct string_t* line,
         size_t line_y,
@@ -530,65 +538,6 @@ done:
     return res;
 }
 
-
-static void draw_selected(struct editor_t* ed, struct buffer_t* buf) {
-
-    buffer_proc_selected_reg(buf, ed, test_selected_callback);
-
-    /*
-    const int cw = CELLW;
-    const int ch = CELLH;
-    set_color_hex(ed, SELECT_COLOR);
-
-
-    long int a = buf->select.y0;
-    long int b = buf->select.y1;
-
-    if(b < a) {
-        long int tmp = 0;
-        tmp = b;
-        b = a;
-        a = tmp + 1;
-    }
-    
-    const long int gap = b - a;
-    
-    long int start = a;
-    long int end   = a + gap;
-
-    for(long int i = start; i < end; i++) {
-        struct string_t* line = buffer_get_string(buf, i);
-        if(line) {
-
-
-            int x = buf->content_xoff;
-            int y = i - buf->scroll;
-            size_t width = line->data_size;
-
-            if(i == start) {
-                x += buf->select.x0;
-                width -= buf->select.x0;
-            }
-
-            x *= cw;
-            y *= ch;
-
-            x += buf->x;
-            y += buf->y;
-
-            width = liclamp(width, 1, line->data_size);
-
-            draw_rect(ed,
-                    x, y,
-                    width * cw, ch,
-                    MAP_XYWH,
-                    DRW_NO_GRID);
-        }
-    }
-    */
-
-}
-
 void draw_buffers(struct editor_t* ed) {
     
     char linenum_buf[LINENUM_BUF_SIZE];
@@ -603,11 +552,12 @@ void draw_buffers(struct editor_t* ed) {
         }
 
         draw_buffer_frame(ed, buf, i == ed->current_buf_id);
-        draw_cursor(ed, buf);
         
         if(buf->mode == BUFMODE_SELECT) {
-            draw_selected(ed, buf);
+            buffer_proc_selected_reg(buf, ed, draw_selected_callback);
         }
+        
+        draw_cursor(ed, buf);
         
         draw_buffer(ed, buf, linenum_buf);
 

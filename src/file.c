@@ -86,8 +86,6 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
             printf("warning: file is read only.\n");
         }
 
-        printf("file descriptor: %i\n", fd);
-
         // get the information about the file.
         //
         struct stat sb;
@@ -102,10 +100,12 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
         }
 
 
+        /*
         struct timespec ts;
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts);
         size_t start_ns = ts.tv_nsec;
         
+        */
         char* ptr = NULL;
         ptr = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 
@@ -213,12 +213,15 @@ error_and_close:
             munmap(ptr, sb.st_size);
         }
         
+        /*
         clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts);
         size_t time_read = ts.tv_nsec - start_ns;
 
 
         printf("\033[94m --> Read file in %lims. \033[90m(%li nanosecods).\033[0m\n", 
                 time_read/1000000, time_read);
+
+                */
 
         buffer_update_content_xoff(buf);
         
@@ -230,7 +233,7 @@ error:
     return total_bytes_read;
 }
 
-size_t write_file(struct editor_t* ed, unsigned int buf_id) {
+size_t write_file(struct editor_t* ed, unsigned int buf_id, char* new_filename) {
     size_t bytes_written = 0;
 
     if(buf_id >= MAX_BUFFERS) {
@@ -245,7 +248,7 @@ size_t write_file(struct editor_t* ed, unsigned int buf_id) {
     }
 
 
-    if(buf->file.name_size == 0) {
+    if(buf->file.name_size == 0 && !new_filename) {
         // TODO: ask to create the file.
         write_message(ed, ERROR_MSG, "no file to write into.\0");
         goto error;
@@ -253,7 +256,28 @@ size_t write_file(struct editor_t* ed, unsigned int buf_id) {
 
     // TODO: save a backup file before opening the file with O_TRUNC
 
-    int fd = open(buf->file.name, O_WRONLY | O_APPEND | O_TRUNC);
+    int openflags = O_WRONLY | O_APPEND | O_TRUNC;
+    int mode = 0;
+
+    if(new_filename) {
+        
+        const size_t newname_len = strlen(new_filename);
+        if(newname_len > BUFFER_MAX_FILENAME_SIZE) {
+            fprintf(stderr, "filename too big.\n");
+            goto error;
+        }
+
+        memmove(buf->file.name, new_filename, newname_len);
+        memset(buf->file.name + newname_len, 0, 1);
+        buf->file.name_size = newname_len;
+        buf->file.opened = 1;
+        buf->file.readonly = 0;
+
+        openflags |= O_CREAT;
+        mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+    }
+
+    int fd = open(buf->file.name, openflags, mode);
     if(fd == EACCES) {
         write_message(ed, ERROR_MSG, "Write access denied. filename:'%s'\0", buf->file.name);
         goto error;
@@ -261,6 +285,7 @@ size_t write_file(struct editor_t* ed, unsigned int buf_id) {
 
     if(fd < 0) {
         perror("open");
+        fprintf(stderr, "%s\n", buf->file.name);
         goto error;
     }
 

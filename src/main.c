@@ -15,12 +15,15 @@ void run_loop(struct editor_t* ed) {
     if(!ed->ready) { return; }
 
 
+    /*
     read_file(ed, 0, "for-testing/test.txt\0", 0);
     read_file(ed, 1, "for-testing/another_file.txt\0", 0);
 
-    ed->num_active_buffers = 2;
-    set_buffer_dimensions(ed);
 
+    */
+    
+    ed->num_active_buffers = 1;
+    set_buffer_dimensions(ed);
 
     while(!glfwWindowShouldClose(ed->win)) {
         glClear(GL_COLOR_BUFFER_BIT);
