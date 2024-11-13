@@ -34,6 +34,11 @@ zig build && ./zig-out/bin/editor
 | `SHIFT + LEFT/RIGHT` | Move by 1 word |
 | `SHIFT + UP/DOWN` | Move up/down but skip rows containing only whitespace |
 
+## Select mode Keybinds
+| Key | Description |
+| --- | --- |
+| `d` | Delete selected region |
+
 ## Commands
 `q.` quit without asking to save
 
