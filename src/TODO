@@ -24,4 +24,5 @@
 
 *   ctrl+shift+o: open #include x file to new buffer
 
+*   OPTIMIZE buffer shift data and remove lines
 

@@ -36,7 +36,7 @@ unsigned int create_shader(const char* source, GLenum shader_type) {
         }
 
         glGetShaderInfoLog(shader, info_log_size, NULL, info_log);
-        fprintf(stderr, "\033[91m%s\033[0m\n", info_log);
+        //fprintf(stderr, "\033[91m%s\033[0m\n", info_log);
 
         free(info_log);
         info_log = NULL;
@@ -64,7 +64,7 @@ unsigned int create_shader_program(
         fprintf(stderr, "\033[41m\033[4m(ERROR) vertex shader failed to compile.\033[0m\n");
         goto error;
     }
-    printf("\033[32m+ vertex shader compiled.\033[0m\n");
+    //printf("\033[32m+ vertex shader compiled.\033[0m\n");
 
 
     frag_shader = create_shader(fragment_src, GL_FRAGMENT_SHADER);
@@ -72,7 +72,7 @@ unsigned int create_shader_program(
         fprintf(stderr, "\033[41m\033[4m(ERROR) fragment shader failed to compile.\033[0m\n");
         goto error;
     }
-    printf("\033[32m+ fragment shader compiled.\033[0m\n");
+    //printf("\033[32m+ fragment shader compiled.\033[0m\n");
 
 
     prog = glCreateProgram();

@@ -211,6 +211,22 @@ error:
     return res;
 }
 
+int buffer_clear_reg(struct buffer_t* buf, 
+        size_t x0, size_t y0,  size_t x1, size_t y1)
+{
+    int res = 0;
+    if(!buffer_ready(buf)) {
+        goto error;
+    }
+
+
+    printf("%s not implemented.\n", __func__);
+
+
+error:
+    return res;
+}
+
 int buffer_memcheck(struct buffer_t* buf, size_t n) {
     int res = 0;
 
@@ -598,6 +614,16 @@ int buffer_remove_line(struct buffer_t* buf, size_t row) {
     }
 
 error:
+    return ok;
+}
+
+int buffer_remove_lines(struct buffer_t* buf, size_t row, size_t n) {
+    int ok = 0;
+
+    for(size_t i = 0; i < n; i++) {
+        buffer_remove_line(buf, row);
+    }
+
     return ok;
 }
 

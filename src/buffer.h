@@ -89,7 +89,9 @@ void   buffer_update_selected(struct buffer_t* buf);
 int    buffer_ready(struct buffer_t* buf);
 void   buffer_reset(struct buffer_t* buf);
 int    buffer_clear_all(struct buffer_t* buf);
-// TODO: 'buffer_clear(buf, start_y, end_y);
+
+int    buffer_clear_reg(struct buffer_t* buf,// TODO: NOT IMPLEMENTED
+                        size_t x0, size_t y0,  size_t x1, size_t y1);
 
 void   buffer_change_mode(struct buffer_t* buf, unsigned int bufmode);
 
@@ -139,6 +141,7 @@ void    buffer_shift_data(struct buffer_t* buf, size_t row, int direction);
 size_t  buffer_find_last_line(struct buffer_t* buf);
 int     buffer_add_newline(struct buffer_t* buf, size_t col, size_t row);
 int     buffer_remove_line(struct buffer_t* buf, size_t row);
+int     buffer_remove_lines(struct buffer_t* buf, size_t row, size_t n);
 
 // returns the string pointer from buf->lines[index] but
 // if 'index' is out of bounds returns NULL.

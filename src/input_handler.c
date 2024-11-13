@@ -352,8 +352,8 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
             default:
 
                 if((mods & GLFW_MOD_SHIFT) && (mods & GLFW_MOD_CONTROL)) {
-                    _key_mod_input_SHIFTCTRL(ed, buf, key);
-                }
+                _key_mod_input_SHIFTCTRL(ed, buf, key);
+            }
                 break;
         }
         return;  // TODO:  check multiple mod.
@@ -381,6 +381,10 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
 
                     case GLFW_KEY_UP:
                         move_cursor(buf, 0, -1);
+                        break;
+
+                    case GLFW_KEY_ESCAPE:
+                        buffer_change_mode(buf, BUFMODE_INSERT);
                         break;
                         
 
@@ -442,9 +446,89 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
                 }
             }
             break;
+    }
+}
 
+
+static int procselected_delete_CALLBACK
+    (struct buffer_t* buf, struct string_t* line, size_t y, int flag, void* userptr)
+{
+    int res = 1;
+
+    const int isbegin = (flag & PROCSELECTED_BEGIN);
+    const int isend   = (flag & PROCSELECTED_END);
+
+    if(isbegin && isend) {
+        
+        long int len = buf->select.x1 - buf->select.x0;
+        if(len > 0) {
+            res = string_cut_data(line, buf->select.x0, len);
+        }
+    }
+    else {
+
+        if(isbegin) {
+            res = string_cut_data(line, buf->select.x0,  (line->data_size - buf->select.x0));
+        }
+        else if(isend) {
+            res = string_cut_data(line, 0, buf->select.x1);
+        }
+        else {
+            res = string_clear_data(line);
+        }
     }
 
+done:
+    return res;
+}
+
+static void select_mode_keypress(struct editor_t* ed, struct buffer_t* buf, int codepoint) {
+
+    switch(codepoint) {
+    
+        case 'd':
+            {
+                buffer_proc_selected_reg(buf, NULL, procselected_delete_CALLBACK);
+                buffer_change_mode(buf, BUFMODE_INSERT);
+
+                // a bit hacky but will do for now...
+                
+                const long int deleted = buf->select.y1 - buf->select.y0;
+                if(deleted > 0) {
+
+                    struct string_t* startstr = buffer_get_string(buf, buf->select.y0);
+                    struct string_t* endstr   = buffer_get_string(buf, buf->select.y1);
+                    
+
+
+                    if(!startstr || !endstr) {
+                        return;
+                    }
+                    
+                    string_move_data(
+                            startstr,
+                            endstr,
+                            startstr->data_size, // dst offset
+                            0, // src offset
+                            endstr->data_size,
+                            STRING_ZERO_SRC
+                            );
+
+                    buffer_remove_lines(buf, buf->select.y0+1, deleted);
+                    /*
+                    for(size_t i = 0; i < deleted; i++) {
+                        buffer_remove_line(buf, buf->select.y0+1);  // TODO function for this
+                    }
+                    */
+
+                }
+
+                move_cursor_to(buf, buf->select.x0, buf->select.y0);
+
+            }
+            break;
+
+    }
 }
 
 void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
@@ -467,7 +551,7 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
                 switch(buf->mode) {
                     case BUFMODE_SELECT:
                         {
-                            printf("select mode commands are not implemented.\n");
+                            select_mode_keypress(ed, buf, codepoint);
                         }
                         break;
 
