@@ -19,9 +19,7 @@ zig build && ./zig-out/bin/editor
 ## Keybinds
 | Key | Description |
 | --- | --- |
-| `ALT + C` | Replace mode |
-| `ALT + V` | Select mode |
-| `ALT + B` | Insert mode |
+| `CTRL + X` | Change mode (see mode options below)|
 | `CTRL + D` | Goto end of the line |
 | `CTRL + A` | Goto start of the line |
 | `CTRL + S` | Goto middle of the line |
@@ -29,10 +27,17 @@ zig build && ./zig-out/bin/editor
 | `CTRL + P` | Command line mode |
 | `CTRL + TAB` | Cycle through active buffers |
 | `CTRL + LEFT/RIGHT/UP/DOWN` | Movement multiplied by 4 |
-| `ALT + UP` | ~~Goto start of the buffer~~|
-| `ALT + DOWN` | ~~Goto end of the buffer~~ |
+| `CTRL + SHIFT + UP` | Goto start of the buffer |
+| `CTRL + SHIFT + DOWN` | Goto end of the buffer |
 | `SHIFT + LEFT/RIGHT` | Move by 1 word |
 | `SHIFT + UP/DOWN` | Move up/down but skip rows containing only whitespace |
+
+## Mode options
+| Key | Description |
+| --- | --- |
+| `c` | Insert mode |
+| `s` | Select mode |
+| `a` | Replace mode |
 
 ## Select mode Keybinds
 | Key | Description |
@@ -50,4 +55,3 @@ zig build && ./zig-out/bin/editor
 
 `write <new filename>` create a new file 
 
-`resetbuf` reset the current buffer
