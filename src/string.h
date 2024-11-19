@@ -2,18 +2,14 @@
 #define STRING_H
 
 
-// how many bytes the string data is incremented every time it needs more memory
-// this can be changed to optimize memory usage
-#define STRING_MEMORY_BLOCK_SIZE 32
+#define STRING_INIT_SIZE 32
 #define STRING_MAX_SIZE 0xf4240
 
 
 struct string_t {
-
-    char*  data;
-    size_t mem_size;  // allocated memory size
-    size_t data_size; // actual data size
-
+    char*   data;
+    size_t  mem_size;  // allocated memory size
+    size_t  data_size; // actual data size
 };
 
 

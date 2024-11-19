@@ -4,9 +4,11 @@
 #include <unistd.h>
 
 #include "buffer.h"
+#include "memory.h"
 #include "utils.h"
+#include "editor.h"
 
-int create_buffer(struct buffer_t* buf, int id) {
+int create_buffer(struct editor_t* ed, struct buffer_t* buf, int id) {
     int ok = 0;
 
     if(!buf) {
@@ -18,7 +20,7 @@ int create_buffer(struct buffer_t* buf, int id) {
         goto error;
     }
 
-    size_t allocated_lines = BUFFER_MEMORY_BLOCK_SIZE;
+    size_t allocated_lines = BUFFER_INIT_SIZE;
     size_t mem_size = allocated_lines * sizeof **buf->lines;
 
     buf->ready = 0;
@@ -50,10 +52,10 @@ int create_buffer(struct buffer_t* buf, int id) {
     buf->width = 64;   // ^
     buf->height = 64;  // ^
 
-    buf->select = (struct select_t) { 0, 0, 0, 0, 0 };
-    buf->file = (struct buffer_file_t) { 0, {0}, 0, 0};
+    buf->select = (struct select_t) { 0, 0, 0, 0, 0, 0 };
+    buf->file = (struct buffer_file_t) { {0}, 0, 0, 0};
     
-    buffer_change_mode(buf, BUFMODE_INSERT);
+    buffer_change_mode(ed, buf, BUFMODE_INSERT);
 
     buf->lines = malloc(mem_size);
     if(!buf->lines) {
@@ -102,7 +104,7 @@ void delete_buffer(struct buffer_t* buf) {
     }
 }
 
-void buffer_change_mode(struct buffer_t* buf, unsigned int bufmode) {
+void buffer_change_mode(struct editor_t* ed, struct buffer_t* buf, unsigned int bufmode) {
     if(bufmode >= BUFMODE_INVALID) {
         fprintf(stderr, "invalid mode(%i) for buffer %i\n", bufmode, buf->id);
         return;
@@ -113,6 +115,55 @@ void buffer_change_mode(struct buffer_t* buf, unsigned int bufmode) {
             BUFFER_MODE_INDICATORS[bufmode],
             BUFFER_MODE_INDICSIZE
             );
+
+    switch(buf->mode) {
+    
+        case BUFMODE_SELECT:
+            buf->select = (struct select_t) {
+                .x0 = buf->cursor_x,
+                .y0 = buf->cursor_y,
+                .x1 = buf->cursor_x,
+                .y1 = buf->cursor_y,
+                .inverted = 0,
+                .scroll_point = buf->scroll
+            };
+            buf->cursor_color[0] = ed->colors[SELECT_CURSOR_COLOR_A];
+            buf->cursor_color[1] = ed->colors[SELECT_CURSOR_COLOR_B];
+            buf->cursor_charcolor = ed->colors[SELECT_CURSORCHAR_COLOR];
+            break;
+
+        case BUFMODE_INSERT:
+            buf->cursor_color[0] = ed->colors[INSERT_CURSOR_COLOR_A];
+            buf->cursor_color[1] = ed->colors[INSERT_CURSOR_COLOR_B];
+            buf->cursor_charcolor = ed->colors[INSERT_CURSORCHAR_COLOR];
+            break;
+        
+        case BUFMODE_REPLACE:
+            buf->cursor_color[0] = ed->colors[REPLACE_CURSOR_COLOR_A];
+            buf->cursor_color[1] = ed->colors[REPLACE_CURSOR_COLOR_B];
+            buf->cursor_charcolor = ed->colors[REPLACE_CURSORCHAR_COLOR];
+            break;
+        
+        case BUFMODE_NONE:
+            buf->cursor_color[0] = ed->colors[NONEMODE_CURSOR_COLOR_A];
+            buf->cursor_color[1] = ed->colors[NONEMODE_CURSOR_COLOR_B];
+            buf->cursor_charcolor = ed->colors[NONEMODE_CURSORCHAR_COLOR];
+            break;
+
+    }
+
+    /*
+    if(buf->mode == BUFMODE_SELECT) {
+        buf->select = (struct select_t) {
+            .x0 = buf->cursor_x,
+            .y0 = buf->cursor_y,
+            .x1 = buf->cursor_x,
+            .y1 = buf->cursor_y,
+            .inverted = 0,
+            .scroll_point = buf->scroll
+        };
+    }
+    */
 }
 
 
@@ -140,34 +191,8 @@ int buffer_ready(struct buffer_t* buf) {
     return res;
 }
 
-void buffer_reset(struct buffer_t* buf) {
-    if(buffer_ready(buf)) {
-        if(!buf->lines) {
-            return;
-        }
 
-        int id = buf->id;
-        int x = buf->x;
-        int y = buf->y;
-        int width = buf->width;
-        int height = buf->height;
-        int max_row = buf->max_row;
-        int max_col = buf->max_col;
-
-        delete_buffer(buf);
-        create_buffer(buf, id);
-
-        buf->x = x;
-        buf->y = y;
-        buf->width = width;
-        buf->height = height;
-        buf->max_row = max_row;
-        buf->max_col = max_col;
-
-    }
-}
-
-int buffer_clear_all(struct buffer_t* buf) {
+int buffer_reset_data(struct buffer_t* buf) {
     int res = 0;
     if(buffer_ready(buf)) {
         // TODO: no need to free everything. 
@@ -181,7 +206,7 @@ int buffer_clear_all(struct buffer_t* buf) {
         
         buf->lines = NULL;
         buf->num_used_lines = 0;
-        buf->num_alloc_lines = BUFFER_MEMORY_BLOCK_SIZE;
+        buf->num_alloc_lines = BUFFER_INIT_SIZE;
         
         buf->scroll = 0;
         buf->prev_scroll = 0;
@@ -211,21 +236,6 @@ error:
     return res;
 }
 
-int buffer_clear_reg(struct buffer_t* buf, 
-        size_t x0, size_t y0,  size_t x1, size_t y1)
-{
-    int res = 0;
-    if(!buffer_ready(buf)) {
-        goto error;
-    }
-
-
-    printf("%s not implemented.\n", __func__);
-
-
-error:
-    return res;
-}
 
 int buffer_memcheck(struct buffer_t* buf, size_t n) {
     int res = 0;
@@ -233,29 +243,23 @@ int buffer_memcheck(struct buffer_t* buf, size_t n) {
     if(buffer_ready(buf)) {
         if(n > buf->num_alloc_lines) {
 
-            size_t nbsize = n + BUFFER_MEMORY_BLOCK_SIZE;
-            struct string_t** ptr = NULL;
+            size_t given_nsize = 0;
 
-            if(n > BUFFER_MAX_SIZE) {
-                fprintf(stderr, "buffer %i reached max size.\n", buf->id);
-                goto error;
-            }
+            buf->lines = (struct string_t**)safe_resize_array(
+                    buf->lines, sizeof **buf->lines,
+                    buf->num_alloc_lines, n,
+                    &given_nsize
+                    );
 
-            ptr = reallocarray(buf->lines, nbsize, sizeof **buf->lines);
-            if(!ptr) {
-                fprintf(stderr, "failed to allocate more memory for buffer.\n");
-                goto error;
-            }
-            
-            buf->lines = ptr;
-
-            for(size_t i = buf->num_alloc_lines; i < nbsize; i++) {
+            for(size_t i = buf->num_alloc_lines; i < given_nsize; i++) {
                 buf->lines[i] = create_string(0);
             }
 
-            buf->num_alloc_lines = nbsize;
+            printf("\033[32m resized buffer(%i) '%p' to hold %li lines\033[0m\n", 
+                    buf->id, buf, given_nsize);
 
-            //printf("\033[32m + resized buffer to hold %li lines.\033[0m\n", buf->num_alloc_lines);
+            buf->num_alloc_lines = given_nsize;
+
         }
         res = 1;
     }
@@ -295,12 +299,7 @@ error:
 
 void buffer_scroll_to(struct buffer_t* buf, size_t y) {
     if(buffer_ready(buf)) {
-        if(buf->num_used_lines < buf->max_row) {
-            return;
-        }
-        buf->scroll = liclamp(y, 
-                0, buf->num_used_lines - buf->max_row+5);
-
+        buf->scroll = liclamp(y, 0, buf->num_used_lines);
         buf->prev_scroll = buf->scroll;
     }
 }

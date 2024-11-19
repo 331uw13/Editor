@@ -1,5 +1,9 @@
 
 
+
+*  clean editor.c <------ mess .-.
+
+
 *   save a backup file on read and write.
 
 *   no need to compute the positions everytime drawing something
@@ -8,8 +12,6 @@
 *   message type FATAL_ERROR_MSG, halt the program if these happen.
 
 *   error testing.
-
-*   verify memchecks are working well.
 
 *   buffer linewrap
 

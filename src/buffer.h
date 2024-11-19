@@ -4,12 +4,12 @@
 #include <stddef.h>
 #include "string.h"
 
-
-#define BUFFER_MEMORY_BLOCK_SIZE 64 // TODO: rename these in string.h and buffer.h
+#define BUFFER_INIT_SIZE 8
 #define LINENUM_BUF_SIZE 28
 #define BUFFER_MAX_SIZE 0xf4240
 #define BUFFER_MAX_FILENAME_SIZE 256
 
+struct editor_t;
 
 struct select_t {
     
@@ -20,30 +20,35 @@ struct select_t {
     long int y1; //
 
     int inverted;
+    size_t scroll_point; // the point where select mode was enabled.
 };
 
 struct buffer_file_t {
-    int    opened;
-    char   name[BUFFER_MAX_FILENAME_SIZE+1];
-    size_t name_size;
-    int    readonly;
+    char  name[BUFFER_MAX_FILENAME_SIZE+1];
+    int      opened;
+    size_t   name_size;
+    int      readonly;
 };
 
-#define BUFMODE_INSERT 0
-#define BUFMODE_SELECT 1
+#define BUFMODE_INSERT  0
+#define BUFMODE_SELECT  1
 #define BUFMODE_REPLACE 2
-#define BUFMODE_INVALID 3
+#define BUFMODE_NONE    3 // this mode may be set so user can change the mode to different one.
+#define BUFMODE_INVALID 4
 
 #define BUFFER_MODE_INDICSIZE 3
-static const char BUFFER_MODE_INDICATORS[][BUFFER_MODE_INDICSIZE] = {
-    "[i]",  // insert
-    "[s]",  // select
-    "[r]"   // replace
+static const unsigned char BUFFER_MODE_INDICATORS[][BUFFER_MODE_INDICSIZE] = {
+    "[i]",  /* insert */
+    "[s]",  /* select */
+    "[r]",  /* replace */
+    "[-]"   /* none    */
+
 };
 static const unsigned int BUFFER_MODE_INDICCOLORS[] = {
-    0x1aba37, // insert
-    0xb848a5, // select
-    0xe65b20  // replace
+    0x1aba37, /* insert */
+    0xb848a5, /* select */
+    0xe65b20, /* replace */
+    0x30c2c9  /* none    */
 };
 
 struct buffer_t {
@@ -78,22 +83,22 @@ struct buffer_t {
     int mode;
     char mode_indicstr[BUFFER_MODE_INDICSIZE];
 
+    unsigned int cursor_charcolor; // the character color thats behind cursor.
+    unsigned int cursor_color[2];
+
     int id; // NOTE: buffer can be accessed from 'editor->buffers[id]'
     int ready;
 };
 
-int    create_buffer(struct buffer_t* buf, int id);
+
+int    create_buffer(struct editor_t* ed, struct buffer_t* buf, int id);
 void   delete_buffer(struct buffer_t* buf);
 void   buffer_update_content_xoff(struct buffer_t* buf);
 void   buffer_update_selected(struct buffer_t* buf);
 int    buffer_ready(struct buffer_t* buf);
-void   buffer_reset(struct buffer_t* buf);
-int    buffer_clear_all(struct buffer_t* buf);
+int    buffer_reset_data(struct buffer_t* buf);
 
-int    buffer_clear_reg(struct buffer_t* buf,// TODO: NOT IMPLEMENTED
-                        size_t x0, size_t y0,  size_t x1, size_t y1);
-
-void   buffer_change_mode(struct buffer_t* buf, unsigned int bufmode);
+void   buffer_change_mode(struct editor_t* ed, struct buffer_t* buf, unsigned int bufmode);
 
 // check if buffer needs more memory.
 //   returns 1 if no more memory is needed or memory is resized.
@@ -113,8 +118,6 @@ void  buffer_scroll   (struct buffer_t* buf, int offset);
 //   in callback function: 
 //   if something unexpected happens return 0 to cancel processing the rest
 //   otherwise return 1 to continue.
-//
-// TODO explain here.
 //
 #define PROCSELECTED_BEGIN 1  // flags
 #define PROCSELECTED_END 2    //

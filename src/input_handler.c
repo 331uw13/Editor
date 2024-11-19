@@ -58,6 +58,8 @@ static void handle_backspace_key_on_buffer(struct editor_t* ed, struct buffer_t*
         buffer_dec_size(buf, 1);
         move_cursor_to(buf, lnsize, buf->cursor_y - 1);
     }
+
+    buffer_update_content_xoff(buf);
 }
 
 
@@ -94,7 +96,7 @@ static void _key_mod_input_CONTROL(struct editor_t* ed, struct buffer_t* buf, in
             ed->mode = MODE_COMMAND_LINE;
             break;
 
-        case GLFW_KEY_X:
+        case GLFW_KEY_O:
             clear_error_buffer(ed);
             break;
 
@@ -129,6 +131,11 @@ static void _key_mod_input_CONTROL(struct editor_t* ed, struct buffer_t* buf, in
             move_cursor(buf, 0, 4);
             break;
 
+            // sets the mode to none so the user can select new mode.
+        case GLFW_KEY_X: 
+            buffer_change_mode(ed, buf, BUFMODE_NONE);
+            break;
+
         default:break;
     }
     // -- CONTROL
@@ -138,38 +145,7 @@ static void _key_mod_input_CONTROL(struct editor_t* ed, struct buffer_t* buf, in
 static void _key_mod_input_ALT(struct editor_t* ed, struct buffer_t* buf, int key) {
     switch(key) {
 
-        /*
-        case GLFW_KEY_UP:
-            ONLY_NORMAL_MODE;
-            move_cursor_to(buf, 0, 0);
-            break;
-        
-        case GLFW_KEY_DOWN: 
-            ONLY_NORMAL_MODE;
-            move_cursor_to(buf, 0, buf->num_used_lines-1);
-            break;
 
-TODO:   CTRL+SHIFT  up/down
-
-            */
-
-        case GLFW_KEY_V:
-            buffer_change_mode(buf, BUFMODE_SELECT);
-            buf->select = (struct select_t) {
-                .x0 = buf->cursor_x,
-                .y0 = buf->cursor_y,
-                .x1 = buf->cursor_x,
-                .y1 = buf->cursor_y
-            };
-            break;
-        
-        case GLFW_KEY_B:
-            buffer_change_mode(buf, BUFMODE_INSERT);
-            break;
-        
-        case GLFW_KEY_C:
-            buffer_change_mode(buf, BUFMODE_REPLACE);
-            break;
 
         default:break;
     }
@@ -315,12 +291,21 @@ static void _key_mod_input_SHIFT(struct editor_t* ed, struct buffer_t* buf, int 
 
 
 static void _key_mod_input_SHIFTCTRL(struct editor_t* ed, struct buffer_t* buf, int key) {
-    
     switch(key) {
     
+        case GLFW_KEY_UP:
+            ONLY_NORMAL_MODE;
+            move_cursor_to(buf, 0, 0);
+            break;
+        
+        case GLFW_KEY_DOWN: 
+            ONLY_NORMAL_MODE;
+            move_cursor_to(buf, 0, buf->num_used_lines-1);
+            break;
 
+
+        default:break;
     }
-
 }
 
 void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int mods) {
@@ -332,6 +317,9 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
     struct buffer_t* buf = &ed->buffers[ed->current_buf_id];
     clear_info_buffer(ed);
 
+    if(buf->mode == BUFMODE_NONE) {
+        return;
+    }
 
     if(mods) {
 
@@ -384,7 +372,7 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
                         break;
 
                     case GLFW_KEY_ESCAPE:
-                        buffer_change_mode(buf, BUFMODE_INSERT);
+                        buffer_change_mode(ed, buf, BUFMODE_INSERT);
                         break;
                         
 
@@ -489,7 +477,7 @@ static void select_mode_keypress(struct editor_t* ed, struct buffer_t* buf, int 
         case 'd':
             {
                 buffer_proc_selected_reg(buf, NULL, procselected_delete_CALLBACK);
-                buffer_change_mode(buf, BUFMODE_INSERT);
+                buffer_change_mode(ed, buf, BUFMODE_INSERT);
 
                 // a bit hacky but will do for now...
                 
@@ -515,15 +503,14 @@ static void select_mode_keypress(struct editor_t* ed, struct buffer_t* buf, int 
                             );
 
                     buffer_remove_lines(buf, buf->select.y0+1, deleted);
-                    /*
-                    for(size_t i = 0; i < deleted; i++) {
-                        buffer_remove_line(buf, buf->select.y0+1);  // TODO function for this
-                    }
-                    */
-
                 }
 
+                buffer_update_content_xoff(buf);
                 move_cursor_to(buf, buf->select.x0, buf->select.y0);
+
+                if(!buf->select.inverted) {
+                    buffer_scroll_to(buf, buf->select.scroll_point);
+                }
 
             }
             break;
@@ -567,6 +554,25 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
                         {
                             if(string_set_char(buf->current, codepoint, buf->cursor_x)) {
                                 move_cursor(buf, 1, 0);
+                            }
+                        }
+                        break;
+
+                    case BUFMODE_NONE:
+                        {
+                            switch(codepoint) {
+                                case 's':
+                                    buffer_change_mode(ed, buf, BUFMODE_SELECT);
+                                    break;
+                                
+                                case 'c':
+                                    buffer_change_mode(ed, buf, BUFMODE_INSERT);
+                                    break;
+                                
+                                case 'a':
+                                    buffer_change_mode(ed, buf, BUFMODE_REPLACE);
+                                    break;
+
                             }
                         }
                         break;

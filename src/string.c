@@ -2,11 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "memory.h"
 #include "string.h"
 
 
 
-struct string_t* create_string(size_t init_size) {
+struct string_t* create_string(size_t size) {
     struct string_t* s = NULL;
 
     s = malloc(sizeof *s);
@@ -19,13 +20,14 @@ struct string_t* create_string(size_t init_size) {
     s->data_size = 0;
     s->data = NULL;
 
-    size_t mem_size = (init_size == 0) ? STRING_MEMORY_BLOCK_SIZE : init_size; 
+    size_t mem_size = (size == 0) ? STRING_INIT_SIZE : size; 
 
     s->data = malloc(mem_size);
     if(!s->data) {
         fprintf(stderr, "failed to allocate memory for string data.\n");
         free(s);
         s = NULL;
+        goto error;
     }
 
     s->mem_size = mem_size;
@@ -51,7 +53,7 @@ void delete_string(struct string_t** str) {
 int string_ready(struct string_t* str) {
     int ready = 0;
     if(str) {
-        ready = (   str->data 
+        ready = (  str->data 
                 && str->mem_size > 0
                 && str->data_size <= str->mem_size
                 );
@@ -63,31 +65,21 @@ int string_memcheck(struct string_t* str, size_t size) {
     int ok = 0;
 
     if(string_ready(str)) {
-        if(size <= str->mem_size) {
-            // TODO: resize string to smaller size?
-            //   
-            ok = 1;
-        }
-        else {
-            char* nptr = NULL;
-            size_t new_size = size+STRING_MEMORY_BLOCK_SIZE;
+        if(size > str->mem_size) {
             
-            if(new_size >= STRING_MAX_SIZE) {
-                fprintf(stderr, "at 'string_memcheck': new_size is too big.\n");
-            }
+            size_t given_nsize = 0;
 
-            nptr = reallocarray(str->data, new_size, 1);
-            if(nptr) {
-                str->data = nptr;
-                str->mem_size = new_size;
-                ok = 1;
-                //printf("resized string '%p' memory size to %li bytes\n", str, new_size);
+            str->data = (char*)safe_resize_array(
+                    str->data, sizeof *str->data,
+                    str->mem_size, size,
+                    &given_nsize
+                    );
             
-            }
-            else {
-                fprintf(stderr, "failed to resize string data.\n");
-            }
+            str->mem_size = given_nsize;
+
+            //printf("\033[33m resized string %p to %li bytes\033[0m\n", str->data, given_nsize);
         }
+        ok = 1;
     }
 
     return ok;

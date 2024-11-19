@@ -56,7 +56,6 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
 
 
         if(buf->file.opened) {
-            
             if(confirm_user_choice(ed, "The current buffer is not empty\ndata may be lost. continue?")
                     == USER_ANSWER_NO) {
                 goto error;
@@ -116,7 +115,7 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
         }
 
 
-        buffer_clear_all(buf);
+        buffer_reset_data(buf);
 
         if(!buffer_ready(buf)) {
             write_message(ed, ERROR_MSG, "buffer %i after clear is not ready.\0", buf->id);

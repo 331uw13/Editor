@@ -12,7 +12,7 @@
 #include "buffer.h"
 #include "font.h"
 
-
+#include "colors.h" // TODO: read colors from config file.
 #include "config.h" // TODO
 
 
@@ -39,6 +39,7 @@
 #define MODE_CONFIRM_CHOICE 2
 
 
+
 struct editor_t {
 
     GLFWwindow* win;
@@ -59,7 +60,7 @@ struct editor_t {
     unsigned int vbo;
     unsigned int vao;
     unsigned int shader;
-    unsigned int drw_color_hex; // set_color_hex changes this value.
+    unsigned int drw_color_hex; // aka 'previous color'. set_color_hex() changes this value.
     int shader_color_uniloc; // uniform location.
 
     // the error which is written to the buffer must be null terminated.
@@ -73,11 +74,14 @@ struct editor_t {
     struct string_t* cmd_str;    // for command line.
     long int         cmd_cursor; //
 
+    struct string_t* clipboard;  // allocated 256 bytes of memory on start up.
     /*
     double mouse_x;
     double mouse_y;
     int    mouse_button; // 1 if left mouse button was pressed.
     */
+
+    unsigned int colors[NUM_COLORS];
 
     // set to 1 if init_editor() returns with pointer,
     //                           GLFW is initialized and everything should be fine.
@@ -126,5 +130,8 @@ struct editor_t* init_editor(
 void cleanup_editor(struct editor_t** e);
 
 
-#endif
+void clipboard_set(struct editor_t* ed, char* data, size_t size);
+void clipboard_clear(struct editor_t* ed);
 
+
+#endif

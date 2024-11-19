@@ -12,7 +12,6 @@
 #define CMD_WRITE 210732889424  // "write"
 #define CMD_QDOT 5863684        // "q." close the editor without asking anything.
 #define CMD_OPEN_NEW 7572764151204206 // "open-new" open file to new buffer
-#define CMD_RESET_BUFFER 7572878340146661  // "resetbuf"
 
 #define CMD_TEST1 210728875318  // "test1"
 #define CMD_TEST2 210728875319  // "test2"
@@ -66,15 +65,6 @@ void execute_cmd(struct editor_t* ed, struct string_t* str) {
 
             case CMD_QDOT:
                 glfwSetWindowShouldClose(ed->win, GLFW_TRUE);
-                break;
-
-            case CMD_RESET_BUFFER:
-                if(buf->num_used_lines > 0
-                && confirm_user_choice(ed, "Reset the current buffer?\nData may be lost.\0")
-                  == USER_ANSWER_NO) {
-                    goto done;
-                }
-                buffer_reset(&ed->buffers[ed->current_buf_id]);
                 break;
 
             case CMD_OPEN_NEW:

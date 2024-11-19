@@ -12,6 +12,7 @@
 #include "utils.h"
 #include "shader.h"
 #include "draw.h"
+#include "memory.h"
 
 void _framebuffer_size_callback(GLFWwindow* win, int width, int height) {
     glViewport(0, 0, width, height);
@@ -394,7 +395,7 @@ void draw_error_buffer(struct editor_t* ed) {
     draw_data(ed, bx+1, by, "-- ERROR --\0", -1, DRW_ONGRID);
     
     font_set_color_hex(&ed->font, 0x403030);
-    draw_data(ed, bx+13, by, "ctrl+x to close\0", -1, DRW_ONGRID);
+    draw_data(ed, bx+13, by, "ctrl+o to close\0", -1, DRW_ONGRID);
 
     font_set_color_hex(&ed->font, 0xA75030);
     draw_data_w(ed, 
@@ -436,7 +437,7 @@ int create_buffers(struct editor_t* ed) {
     for(int i = 0; i < MAX_BUFFERS; i++) {
         struct buffer_t* buf = &ed->buffers[i];
         if(buf) {
-            if(!create_buffer(buf, i)) {
+            if(!create_buffer(ed, buf, i)) {
                 fprintf(stderr, "buffer '%i' failed to initialize.\n", i);
                 goto error;
             }
@@ -479,6 +480,8 @@ struct editor_t* init_editor(const char* fontfile,
     ed->shader_color_uniloc = -1;
     ed->cmd_cursor = 0;
 
+    init_colors(ed);
+    init_mem_static_vars();
 
     if(!glfwInit()) { 
         // TODO  handle glfw errors better!
@@ -574,6 +577,9 @@ struct editor_t* init_editor(const char* fontfile,
     //  -- ready.
     ed->mode = MODE_NORMAL;
     ed->ready = 1;
+
+
+    
 
 giveup:
     return ed;

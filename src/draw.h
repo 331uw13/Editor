@@ -61,6 +61,7 @@ void draw_framed_rect(struct editor_t* ed,
 //       until null character is found.
 void  draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid);
 void  draw_data(struct editor_t* ed, int x, int y, char* data, long int size, int use_grid);
+void  draw_data_syntax(struct editor_t* ed, int x, int y, char* data, long int size, int use_grid);
 
 // uses line wrapping and \n character is not ignored
 // if use_grid is set to 1 max_x is treated as max column
