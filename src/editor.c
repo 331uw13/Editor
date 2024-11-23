@@ -557,7 +557,6 @@ struct editor_t* init_editor(const char* fontfile,
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 2, NULL, GL_DYNAMIC_DRAW);
 
     // positions
-    //
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
     glEnableVertexAttribArray(0);
    
@@ -572,14 +571,14 @@ struct editor_t* init_editor(const char* fontfile,
     if(!create_buffers(ed)) {
         goto giveup;
     }
+
     ed->cmd_str = create_string(COMMAND_LINE_MAX_SIZE);
+    ed->clipbrd = create_string(CLIPBOARD_INIT_SIZE);
 
     //  -- ready.
     ed->mode = MODE_NORMAL;
     ed->ready = 1;
 
-
-    
 
 giveup:
     return ed;
@@ -588,23 +587,25 @@ giveup:
 
 void cleanup_editor(struct editor_t** e) {
     if((*e)) {
-        printf("cleanup.\n");
         for(int i = 0; i < MAX_BUFFERS; i++) {
             delete_buffer(&(*e)->buffers[i]);
         }
-        
+
+
         if((*e)->win) {
             glfwDestroyWindow((*e)->win);
             (*e)->win = NULL;
-            printf(" destroyed window.\n");
         }
      
         if((*e)->ready) {
             glfwTerminate();
-            printf(" terminated glfw.\n");
         }
 
+        unload_font(&(*e)->font);
         delete_shader_program((*e)->shader);
+        delete_string(&(*e)->cmd_str);
+        delete_string(&(*e)->clipbrd);
+
         if((*e)->vbo) {
             glDeleteBuffers(1, &(*e)->vbo);
         }
@@ -612,16 +613,13 @@ void cleanup_editor(struct editor_t** e) {
             glDeleteVertexArrays(1, &(*e)->vao);
         }
 
-        unload_font(&(*e)->font);
-        delete_string(&(*e)->cmd_str);
 
         (*e)->ready = 0;
 
         free(*e);
         *e = NULL;
-        
-        printf("\033[32m freed editor, bye.\033[0m\n");
+
+        printf("cleanup done.\n");
     }
 }
-
 

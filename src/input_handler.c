@@ -6,7 +6,7 @@
 #include "command_line.h"
 #include "file.h"
 #include "utils.h"
-
+#include "selectreg.h"
 #include "config.h"
 
 
@@ -15,7 +15,7 @@ static void handle_enter_key_on_buffer(struct editor_t* ed, struct buffer_t* buf
     && buf->mode != BUFMODE_REPLACE) {
         return;
     }
-    if(buffer_add_newline(buf, buf->cursor_x, buf->cursor_y)) {
+    if(buffer_add_newline(buf, buf->cursor_x, buf->cursor_y, BUFADDNL_USE_INDENT)) {
         if(buf->cursor_y > (buf->scroll + ed->max_row)) {
             buffer_scroll(buf, -1);
         }
@@ -134,6 +134,10 @@ static void _key_mod_input_CONTROL(struct editor_t* ed, struct buffer_t* buf, in
             // sets the mode to none so the user can select new mode.
         case GLFW_KEY_X: 
             buffer_change_mode(ed, buf, BUFMODE_NONE);
+            break;
+
+        case GLFW_KEY_V:
+            buffer_paste_clipboard(ed, buf);
             break;
 
         default:break;
@@ -322,8 +326,6 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
     }
 
     if(mods) {
-
-
         switch(mods) {
             case GLFW_MOD_SHIFT:
                 _key_mod_input_SHIFT(ed, buf, key);
@@ -352,7 +354,6 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
 
         case MODE_NORMAL:
             {
-                
                 switch(key) {
 
                     case GLFW_KEY_LEFT:
@@ -438,72 +439,26 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
 }
 
 
-static int procselected_delete_CALLBACK
-    (struct buffer_t* buf, struct string_t* line, size_t y, int flag, void* userptr)
-{
-    int res = 1;
-
-    const int isbegin = (flag & PROCSELECTED_BEGIN);
-    const int isend   = (flag & PROCSELECTED_END);
-
-    if(isbegin && isend) {
-        
-        long int len = buf->select.x1 - buf->select.x0;
-        if(len > 0) {
-            res = string_cut_data(line, buf->select.x0, len);
-        }
-    }
-    else {
-
-        if(isbegin) {
-            res = string_cut_data(line, buf->select.x0,  (line->data_size - buf->select.x0));
-        }
-        else if(isend) {
-            res = string_cut_data(line, 0, buf->select.x1);
-        }
-        else {
-            res = string_clear_data(line);
-        }
-    }
-
-done:
-    return res;
-}
-
-static void select_mode_keypress(struct editor_t* ed, struct buffer_t* buf, int codepoint) {
+static void select_mode_keypress(struct editor_t* ed, struct buffer_t* buf, unsigned int codepoint) {
 
     switch(codepoint) {
-    
+
+        case 'c':
+            {
+                buffer_copy_selected(ed, buf);
+            }
+            break;
+
         case 'd':
             {
-                buffer_proc_selected_reg(buf, NULL, procselected_delete_CALLBACK);
-                buffer_change_mode(ed, buf, BUFMODE_INSERT);
+                buffer_copy_selected(ed, buf);
+                buffer_remove_selected(buf);
+            }
+            break;
 
-                // a bit hacky but will do for now...
-                
-                const long int deleted = buf->select.y1 - buf->select.y0;
-                if(deleted > 0) {
-
-                    struct string_t* startstr = buffer_get_string(buf, buf->select.y0);
-                    struct string_t* endstr   = buffer_get_string(buf, buf->select.y1);
-                    
-
-
-                    if(!startstr || !endstr) {
-                        return;
-                    }
-                    
-                    string_move_data(
-                            startstr,
-                            endstr,
-                            startstr->data_size, // dst offset
-                            0, // src offset
-                            endstr->data_size,
-                            STRING_ZERO_SRC
-                            );
-
-                    buffer_remove_lines(buf, buf->select.y0+1, deleted);
-                }
+        case 'q':
+            {
+                buffer_remove_selected(buf);
 
                 buffer_update_content_xoff(buf);
                 move_cursor_to(buf, buf->select.x0, buf->select.y0);
@@ -512,10 +467,23 @@ static void select_mode_keypress(struct editor_t* ed, struct buffer_t* buf, int 
                     buffer_scroll_to(buf, buf->select.scroll_point);
                 }
 
+                buffer_change_mode(ed, buf, BUFMODE_INSERT);
             }
             break;
 
     }
+}
+
+static void b_select_mode_keypress(struct editor_t* ed, struct buffer_t* buf, unsigned int codepoint) {
+   switch(codepoint) { 
+        case '1':
+            buffer_proc_selected_reg(buf, ed,  dec_selected_reg_indent_callback);
+            break;
+
+        case '2':
+            buffer_proc_selected_reg(buf, ed,  inc_selected_reg_indent_callback);
+            break;
+   }
 }
 
 void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
@@ -542,6 +510,12 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
                         }
                         break;
 
+                    case BUFMODE_B_SELECT:
+                        {
+                            b_select_mode_keypress(ed, buf, codepoint);
+                        }
+                        break;
+
                     case BUFMODE_INSERT:
                         {
                             if(string_add_char(buf->current, codepoint, buf->cursor_x)) {
@@ -560,7 +534,14 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
 
                     case BUFMODE_NONE:
                         {
+                            // NONEMODE_COMMANDS
+
                             switch(codepoint) {
+
+                                case 'd':
+                                    buffer_change_mode(ed, buf, BUFMODE_B_SELECT);
+                                    break;
+
                                 case 's':
                                     buffer_change_mode(ed, buf, BUFMODE_SELECT);
                                     break;
@@ -572,6 +553,7 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
                                 case 'a':
                                     buffer_change_mode(ed, buf, BUFMODE_REPLACE);
                                     break;
+
 
                             }
                         }
@@ -604,16 +586,6 @@ void scroll_input_handler(GLFWwindow* win, double xoff, double yoff) {
     move_cursor(buf, 0, iyoff);
 }
 
-/*
-void mouse_bttn_input_handler(GLFWwindow* win, int button, int action, int mods) {
-    struct editor_t* ed = glfwGetWindowUserPointer(win);
-    if(!ed) { return; }
-
-    if(action == GLFW_PRESS) {
-        ed->mouse_button = 1;
-    }
-}
-*/
 
 
 

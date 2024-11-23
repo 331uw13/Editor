@@ -27,13 +27,12 @@ static size_t find_next_size(size_t size, size_t newsize) {
 }
 
 
-void* safe_resize_array(void* ptr, size_t esizeb, size_t ptrsize, size_t newsize, size_t* nsize_ptr) {
+void* safe_resize_array(void* ptr, size_t esizeb, size_t ptrsize, size_t newsize, long int* nsize_ptr) {
     void* result = NULL;
 
     if((esizeb * newsize) <= 0) {
         goto error;
     }
-
 
     if((ptrsize < newsize) && (ptr != NULL)) {
         size_t amemsize = find_next_size(ptrsize, newsize);
@@ -44,7 +43,11 @@ void* safe_resize_array(void* ptr, size_t esizeb, size_t ptrsize, size_t newsize
                     "ptr = %p | esizeb = %li | amemsize = %li\n"
                     "(errno:%i) %s\n",
                     __FILE__, __func__, ptr, esizeb, amemsize, errno, strerror(errno));
-            
+
+            if(nsize_ptr) {
+                *nsize_ptr = MEMRESIZE_ERROR;
+            }
+
             result = ptr;
             goto error;
         }
@@ -57,6 +60,10 @@ void* safe_resize_array(void* ptr, size_t esizeb, size_t ptrsize, size_t newsize
         if(!(result = malloc(newsize * esizeb))) {
             fprintf(stderr, "[ERROR] %s: 'malloc(newsize * ewsizeb)' failed.\n(errno:%d)%s\n",
                     __func__, errno, strerror(errno));
+        
+            if(nsize_ptr) {
+                *nsize_ptr = MEMRESIZE_ERROR;
+            }
         }
     }
 

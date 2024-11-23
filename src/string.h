@@ -13,6 +13,8 @@ struct string_t {
 };
 
 
+// TODO: rename 'offset' to 'index'
+
 
 // 'init_size' can be zero, it will be allocated STRING_MEMORY_BLOCK_SIZE bytes.
 struct string_t* create_string(size_t init_size);
@@ -29,7 +31,7 @@ int string_memcheck(struct string_t* str, size_t size);
 int     string_add_char(struct string_t* str, char c, size_t index);
 int     string_set_char(struct string_t* str, char c, size_t index);
 int     string_rem_char(struct string_t* str, size_t index);
-int     string_append_char(struct string_t* str, char c);
+int     string_app_char(struct string_t* str, char c); // append char
 
 // returns 0 if index is out of bounds.
 char    string_get_char(struct string_t* str, size_t index);
@@ -43,6 +45,7 @@ int     string_move_data(struct string_t* dst_str, struct string_t* src_str,
                          size_t dst_offset, size_t src_offset,
                          size_t size, int flags);
 
+
 // count whitespace characters until non-whitespace character is found
 // or index of 'n' is reached.
 size_t  string_count_ws_to(struct string_t* str, size_t n);
@@ -52,10 +55,10 @@ int     string_is_data_ws(struct string_t* str);
 
 int     string_copy_all(struct string_t* dst_str, struct string_t* src_str);
 int     string_cut_data(struct string_t* str, size_t offset, size_t size);
-int     string_set_data(struct string_t* str, char* data, size_t size);
 size_t  string_num_chars(struct string_t* str, size_t start, size_t end, char c);
 int     string_clear_data(struct string_t* str);
-size_t  string_count_begin_tabs(struct string_t* str);
+int     string_set_data(struct string_t* str, char* data, size_t size);
+int     string_add_data(struct string_t* str, size_t index, char* data, size_t size);
 
 // 'direction' for string_find_char.
 #define STRFIND_NEXT 0

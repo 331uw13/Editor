@@ -444,37 +444,49 @@ static void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
     draw_rect(ed, x, y, cw, ch, MAP_XYWH, DRW_NO_GRID);
 
     set_color_hex(ed, buf->cursor_color[0]);
-    
-    if(buf->mode != BUFMODE_SELECT) {
-        
-        // cursor line below
-        //
-        draw_rect(ed, 
-                x,
-                y + ch-1,
-                cw,
-                2,
-                MAP_XYWH, DRW_NO_GRID);
+   
 
-        // cursor line right side
-        //
-        draw_rect(ed,
-                x + cw - 1,
-                y + ch/2 - 2,
-                2,
-                ch/2 + 2,
-                MAP_XYWH, DRW_NO_GRID);
+    switch(buf->mode) {
+
+        case BUFMODE_INSERT:
+        case BUFMODE_REPLACE:
+        case BUFMODE_NONE:
+        case BUFMODE_B_SELECT:
+            {
+                // cursor line below
+                //
+                draw_rect(ed, 
+                        x,
+                        y + ch-1,
+                        cw,
+                        2,
+                        MAP_XYWH, DRW_NO_GRID);
+
+                // cursor line right side
+                //
+                draw_rect(ed,
+                        x + cw - 1,
+                        y + ch/2 - 2,
+                        2,
+                        ch/2 + 2,
+                        MAP_XYWH, DRW_NO_GRID);
+
+            }
+            break;
+
+
+        case BUFMODE_SELECT:
+            {
+                draw_rect(ed,
+                    x-1,
+                    y,
+                    2,
+                    ch,
+                    MAP_XYWH, DRW_NO_GRID);
+
+            }
+            break;
     }
-    else if(buf->mode == BUFMODE_SELECT) {
-        draw_rect(ed,
-                x-1,
-                y,
-                2,
-                ch,
-                MAP_XYWH, DRW_NO_GRID);
-
-    }
-
 
     if(buf->cursor_x < buf->current->data_size) {
         font_set_color_hex(&ed->font, buf->cursor_charcolor);
@@ -484,7 +496,7 @@ static void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
 }
 
 
-static int draw_selected_CALLBACK(
+static int draw_selected_callback(
         struct buffer_t* buf,
         struct string_t* line,
         size_t line_y,
@@ -544,6 +556,56 @@ done:
     return res;
 }
 
+static int draw_B_selected_callback(
+        struct buffer_t* buf,
+        struct string_t* line,
+        size_t line_y,
+        int flag,
+        void* userptr
+        )
+{
+    int res = 1;
+
+    struct editor_t* ed = (struct editor_t*) userptr;
+    if(!ed) {
+        res = 0;
+        goto error;
+    }
+
+    const int cw = CELLW;
+    const int ch = CELLH;
+
+
+    long int y = line_y - buf->scroll;
+    long int x = buf->content_xoff - 1;
+    
+    x *= cw;
+    y *= ch;
+    x += buf->x;
+    y += buf->y;
+
+    // left side line
+    set_color_hex(ed, ed->colors[B_SELECT_REGION_COLOR_A]);
+    draw_rect(ed,
+            x, y,
+            cw/2, ch,
+            MAP_XYWH, DRW_NO_GRID);
+
+
+    // color affected text background
+    
+    set_color_hex(ed, ed->colors[B_SELECT_REGION_COLOR_B]);
+    draw_rect(ed,
+            x+cw, y,
+            (line->data_size > 0 ? line->data_size : 1) * cw,
+            ch,
+            MAP_XYWH, DRW_NO_GRID
+            );
+
+error:
+    return res;
+}
+
 void draw_buffers(struct editor_t* ed) {
     
     char linenum_buf[LINENUM_BUF_SIZE];
@@ -560,7 +622,10 @@ void draw_buffers(struct editor_t* ed) {
         draw_buffer_frame(ed, buf, i == ed->current_buf_id);
         
         if(buf->mode == BUFMODE_SELECT) {
-            buffer_proc_selected_reg(buf, ed, draw_selected_CALLBACK);
+            buffer_proc_selected_reg(buf, ed, draw_selected_callback);
+        }
+        else if(buf->mode == BUFMODE_B_SELECT) {
+            buffer_proc_selected_reg(buf, ed, draw_B_selected_callback);
         }
         
         

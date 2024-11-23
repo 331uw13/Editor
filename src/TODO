@@ -3,6 +3,9 @@
 
 *  clean editor.c <------ mess .-.
 
+*   rewrite error messages
+
+
 
 *   save a backup file on read and write.
 
@@ -27,4 +30,11 @@
 *   ctrl+shift+o: open #include x file to new buffer
 
 *   OPTIMIZE buffer shift data and remove lines
+
+*   reserve width * height memory for rectangles (text rendering)
+    then just use one draw call to draw everything.
+
+
+*   remove stddef.h set the size_t type somewhere else
+
 

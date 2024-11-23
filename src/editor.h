@@ -26,6 +26,8 @@
 #define EDITOR_TEXT_X_SPACING 1.0 // how much space between characters?
 #define COMMAND_LINE_MAX_SIZE 64
 
+#define CLIPBOARD_INIT_SIZE 256
+
 #define PRINTERR(str) \
     fprintf(stderr, "ERROR: %s '%s()' \033[31m" str "\033[0m\n", __FILE__, __func__)
 
@@ -37,7 +39,6 @@
 #define MODE_NORMAL 0
 #define MODE_COMMAND_LINE 1
 #define MODE_CONFIRM_CHOICE 2
-
 
 
 struct editor_t {
@@ -53,15 +54,16 @@ struct editor_t {
 
     int window_width;
     int window_height;
-
     int max_column;
     int max_row;
 
-    unsigned int vbo;
-    unsigned int vao;
+
+    unsigned int vbo; // vertex buffer object
+    unsigned int vao; // vertex array object
     unsigned int shader;
-    unsigned int drw_color_hex; // aka 'previous color'. set_color_hex() changes this value.
+    unsigned int drw_color_hex; // set_color_hex() changes this value.
     int shader_color_uniloc; // uniform location.
+
 
     // the error which is written to the buffer must be null terminated.
     char    error_buf[ERROR_BUFFER_MAX_SIZE];
@@ -71,15 +73,13 @@ struct editor_t {
     char    info_buf[INFO_BUFFER_MAX_SIZE];
     size_t  info_buf_size;
 
+
     struct string_t* cmd_str;    // for command line.
     long int         cmd_cursor; //
 
-    struct string_t* clipboard;  // allocated 256 bytes of memory on start up.
-    /*
-    double mouse_x;
-    double mouse_y;
-    int    mouse_button; // 1 if left mouse button was pressed.
-    */
+
+    struct string_t* clipbrd;
+
 
     unsigned int colors[NUM_COLORS];
 

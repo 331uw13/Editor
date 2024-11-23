@@ -33,6 +33,11 @@ void init_colors(struct editor_t* ed) {
 
     ed->colors[COMMENT_COLOR] = 0x505050;
     ed->colors[NUMBER_COLOR] = 0x68d166;
+    
+    ed->colors[B_SELECT_REGION_COLOR_A] = 0xbd1947;
+    ed->colors[B_SELECT_REGION_COLOR_B] = 0x300d17;
+    ed->colors[B_SELECT_CURSOR_COLOR_A] = 0xf0245d;
+    ed->colors[B_SELECT_CURSOR_COLOR_B] = 0x521526;
 }
 
 

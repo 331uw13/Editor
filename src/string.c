@@ -67,21 +67,27 @@ int string_memcheck(struct string_t* str, size_t size) {
     if(string_ready(str)) {
         if(size > str->mem_size) {
             
-            size_t given_nsize = 0;
+            long int nsize = 0;
 
-            str->data = (char*)safe_resize_array(
+            if(!(str->data = (char*)safe_resize_array(
                     str->data, sizeof *str->data,
                     str->mem_size, size,
-                    &given_nsize
-                    );
-            
-            str->mem_size = given_nsize;
+                    &nsize
+                    ))) {
+                goto error;
+            }
+            if(nsize == MEMRESIZE_ERROR) {
+                goto error;
+            }
+
+            str->mem_size = nsize;
 
             //printf("\033[33m resized string %p to %li bytes\033[0m\n", str->data, given_nsize);
         }
         ok = 1;
     }
 
+error:
     return ok;
 }
 
@@ -146,7 +152,7 @@ done:
     return ok;
 }
 
-int string_append_char(struct string_t* str, char c) {
+int string_app_char(struct string_t* str, char c) {
     int ok = 0;
     
     if(string_ready(str)) {
@@ -172,7 +178,6 @@ char string_get_char(struct string_t* str, size_t index) {
     return c;
 }
 
-
 int string_move_data(struct string_t* dst_str, struct string_t* src_str, 
         size_t dst_offset, size_t src_offset,
         size_t size, int flags) {
@@ -187,6 +192,9 @@ int string_move_data(struct string_t* dst_str, struct string_t* src_str,
             goto error;
         }
         if(src_offset > src_str->data_size) {
+            goto error;
+        }
+        if((src_offset + size) > src_str->data_size) {
             goto error;
         }
 
@@ -214,7 +222,7 @@ int string_move_data(struct string_t* dst_str, struct string_t* src_str,
 
         dst_str->data_size = new_dst_size;
 
-        if(flags & STRING_ZERO_SRC) {
+        if((flags & STRING_ZERO_SRC)) {
             memset(src_str->data, 0, src_str->data_size);
             src_str->data_size = 0;
         }
@@ -295,7 +303,7 @@ int string_cut_data(struct string_t* str, size_t offset, size_t size) {
         }
 
         if(str->data_size < (offset+size)) {
-            fprintf(stderr, "'string_cut_data': trying to cut too much data.\n");
+            fprintf(stderr, "%s: trying to cut too much data.\n", __func__);
             goto error;
         }
 
@@ -344,15 +352,43 @@ int string_clear_data(struct string_t* str) {
     return ok;
 }
 
-
 int string_set_data(struct string_t* str, char* data, size_t size) {
     int ok = 0;
 
     if(string_ready(str) && data && (size > 0)) {
         memmove(str->data, data, size);
+        str->data_size = size;
         ok = 1;
     }
 
+    return ok;
+}
+
+int string_add_data(struct string_t* str, size_t index, char* data, size_t size) {
+    int ok = 0;
+
+    if(string_ready(str) && data && (size > 0)) {
+        const size_t newsize = str->data_size + size;
+        if(!string_memcheck(str, newsize)) {
+            goto error;
+        }
+
+        // first move the data left by 'size' of bytes
+        memmove(
+                str->data + index + size,
+                str->data + index,
+                size
+                );
+
+        // now set the new data
+        memmove(
+                str->data + index,
+                data,
+                size
+                );
+    }
+
+error:
     return ok;
 }
 

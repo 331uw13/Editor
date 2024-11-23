@@ -104,6 +104,19 @@ void delete_buffer(struct buffer_t* buf) {
     }
 }
 
+void buffer_init_select(struct buffer_t* buf) {
+    if(buffer_ready(buf)) {
+        buf->select = (struct select_t) {
+            .x0 = buf->cursor_x,
+            .y0 = buf->cursor_y,
+            .x1 = buf->cursor_x,
+            .y1 = buf->cursor_y,
+            .inverted = 0,
+            .scroll_point = buf->scroll
+        };
+    }
+}
+
 void buffer_change_mode(struct editor_t* ed, struct buffer_t* buf, unsigned int bufmode) {
     if(bufmode >= BUFMODE_INVALID) {
         fprintf(stderr, "invalid mode(%i) for buffer %i\n", bufmode, buf->id);
@@ -117,18 +130,18 @@ void buffer_change_mode(struct editor_t* ed, struct buffer_t* buf, unsigned int 
             );
 
     switch(buf->mode) {
-    
+
         case BUFMODE_SELECT:
-            buf->select = (struct select_t) {
-                .x0 = buf->cursor_x,
-                .y0 = buf->cursor_y,
-                .x1 = buf->cursor_x,
-                .y1 = buf->cursor_y,
-                .inverted = 0,
-                .scroll_point = buf->scroll
-            };
+            buffer_init_select(buf);
             buf->cursor_color[0] = ed->colors[SELECT_CURSOR_COLOR_A];
             buf->cursor_color[1] = ed->colors[SELECT_CURSOR_COLOR_B];
+            buf->cursor_charcolor = ed->colors[SELECT_CURSORCHAR_COLOR];
+            break;
+        
+        case BUFMODE_B_SELECT:
+            buffer_init_select(buf);
+            buf->cursor_color[0] = ed->colors[B_SELECT_CURSOR_COLOR_A];
+            buf->cursor_color[1] = ed->colors[B_SELECT_CURSOR_COLOR_B];
             buf->cursor_charcolor = ed->colors[SELECT_CURSORCHAR_COLOR];
             break;
 
@@ -151,19 +164,6 @@ void buffer_change_mode(struct editor_t* ed, struct buffer_t* buf, unsigned int 
             break;
 
     }
-
-    /*
-    if(buf->mode == BUFMODE_SELECT) {
-        buf->select = (struct select_t) {
-            .x0 = buf->cursor_x,
-            .y0 = buf->cursor_y,
-            .x1 = buf->cursor_x,
-            .y1 = buf->cursor_y,
-            .inverted = 0,
-            .scroll_point = buf->scroll
-        };
-    }
-    */
 }
 
 
@@ -236,29 +236,33 @@ error:
     return res;
 }
 
-
 int buffer_memcheck(struct buffer_t* buf, size_t n) {
     int res = 0;
 
     if(buffer_ready(buf)) {
         if(n > buf->num_alloc_lines) {
 
-            size_t given_nsize = 0;
+            long int nsize = 0;
 
-            buf->lines = (struct string_t**)safe_resize_array(
+            if(!(buf->lines = (struct string_t**)safe_resize_array(
                     buf->lines, sizeof **buf->lines,
                     buf->num_alloc_lines, n,
-                    &given_nsize
-                    );
+                    &nsize
+                    ))) {
+                goto error;
+            }
+            if(nsize == MEMRESIZE_ERROR) {
+                goto error;
+            }
 
-            for(size_t i = buf->num_alloc_lines; i < given_nsize; i++) {
+            for(size_t i = buf->num_alloc_lines; i < nsize; i++) {
                 buf->lines[i] = create_string(0);
             }
 
             printf("\033[32m resized buffer(%i) '%p' to hold %li lines\033[0m\n", 
-                    buf->id, buf, given_nsize);
+                    buf->id, buf, nsize);
 
-            buf->num_alloc_lines = given_nsize;
+            buf->num_alloc_lines = nsize;
 
         }
         res = 1;
@@ -323,17 +327,60 @@ void buffer_update_selected(struct buffer_t* buf) {
 }
 
 void buffer_swap_selected(struct buffer_t* buf) {
-    long int tmp = 0;
+    if(buffer_ready(buf)) {
+        long int tmp = 0;
 
-    tmp = buf->select.y0;
-    buf->select.y0 = buf->select.y1;
-    buf->select.y1 = tmp;
+        tmp = buf->select.y0;
+        buf->select.y0 = buf->select.y1;
+        buf->select.y1 = tmp;
 
-    tmp = buf->select.x0;
-    buf->select.x0 = buf->select.x1;
-    buf->select.x1 = tmp;
+        tmp = buf->select.x0;
+        buf->select.x0 = buf->select.x1;
+        buf->select.x1 = tmp;
 
-    buf->select.inverted =! buf->select.inverted;
+        buf->select.inverted =! buf->select.inverted;
+    }
+}
+
+int buffer_remove_selected(struct buffer_t* buf) {
+    int ok = 0;
+    if(buffer_ready(buf)) {
+        
+        buffer_proc_selected_reg(buf, NULL, remove_selected_reg_callback);
+
+        const int gap = buf->select.y1 - buf->select.y0;
+
+        struct string_t* startstr = buffer_get_string(buf, buf->select.y0);
+        struct string_t* endstr   = buffer_get_string(buf, buf->select.y1);
+
+        if(!startstr || !endstr) { 
+            goto error;
+        }
+
+        if(gap > 0) {
+            if(!string_move_data(
+                        startstr,
+                        endstr,
+                        startstr->data_size, // dst_offset
+                        0, // src_offset
+                        endstr->data_size,
+                        STRING_ZERO_SRC)) {
+                goto error;
+            }
+
+            buffer_remove_lines(buf, buf->select.y0+1, gap);
+        
+            if(!buf->select.inverted) {
+                buffer_scroll_to(buf, buf->select.scroll_point);
+            }
+
+        }
+        
+        move_cursor_to(buf, buf->select.x0, buf->select.y0);
+        ok = 1;
+    }
+error:
+    return ok;
 }
 
 void buffer_proc_selected_reg(
@@ -380,6 +427,56 @@ void buffer_proc_selected_reg(
 
 }
 
+void buffer_copy_selected(struct editor_t* ed, struct buffer_t* buf) {
+    if(buffer_ready(buf)) {
+        string_clear_data(ed->clipbrd);
+        buffer_proc_selected_reg(buf, ed, copy_selected_reg_callback);
+
+        string_app_char(ed->clipbrd, '\0');
+        buffer_change_mode(ed, buf, BUFMODE_INSERT);
+    }
+}
+
+void buffer_paste_clipboard(struct editor_t* ed, struct buffer_t* buf) {
+    if(buffer_ready(buf) && ed->clipbrd->data_size > 0) {
+        
+        printf("-- paste\n'\033[90m\n%s\033[0m'\n", ed->clipbrd->data);
+
+        struct string_t* target = buf->current;
+        long int x = buf->cursor_x;
+        long int y = buf->cursor_y;
+        const long int x_origin = x;
+
+        for(size_t i = 0; i < ed->clipbrd->data_size; i++) {
+            char c = ed->clipbrd->data[i];
+
+            if(c == '\n') {
+                buffer_add_newline(buf, x, y, BUFADDNL_NO_INDENT);
+                target = buffer_get_string(buf, y+1);
+                if(!target) {
+                    break;
+                }
+
+                y++;
+                x = 0;
+                continue;
+            }
+
+            if(!char_ok(c)) {
+                continue;
+            }
+
+            if(!string_add_char(target, c, x)) {
+                fprintf(stderr, "[ERROR] %s | %x/'%c' to %p failed.",
+                        __func__, c, c, target);
+                break;
+            }
+
+            x++;
+
+        }
+    }
+}
 
 void move_cursor_to(struct buffer_t* buf, long int col, long int row) {
     if(!buffer_ready(buf)) { return; }
@@ -429,7 +526,7 @@ void move_cursor_to(struct buffer_t* buf, long int col, long int row) {
        
     }
 
-    if(buf->mode == BUFMODE_SELECT) {
+    if((buf->mode == BUFMODE_SELECT) || (buf->mode == BUFMODE_B_SELECT)) {
         buffer_update_selected(buf);
     }
 }
@@ -536,7 +633,7 @@ void buffer_shift_data(struct buffer_t* buf, size_t row, int direction) {
     }
 }
 
-int buffer_add_newline(struct buffer_t* buf, size_t col, size_t row) {
+int buffer_add_newline(struct buffer_t* buf, size_t col, size_t row, int option) {
     int ok = 0;
     if(!buffer_ready(buf)) {
         goto error;
@@ -551,7 +648,7 @@ int buffer_add_newline(struct buffer_t* buf, size_t col, size_t row) {
     }
 
 
-    struct string_t* current = buffer_get_string(buf, row);//buf->lines[row];
+    struct string_t* current = buffer_get_string(buf, row);
     struct string_t* below = buffer_get_string(buf, buf->cursor_y+1);
 
     if(!current || !below) {
@@ -562,28 +659,30 @@ int buffer_add_newline(struct buffer_t* buf, size_t col, size_t row) {
 
     buffer_shift_data(buf, row, BUFFER_SHIFT_DOWN);
 
-    size_t num_tabs = 0;
+    size_t nm = 0;
     if(current->data_size > 0) {
         
         string_cut_data(current, col, current->data_size - col);
         string_cut_data(below, 0, col);
 
 
-        for(size_t i = 0; i < current->data_size; i++) {
-            char c = current->data[i];
-            if(c != 0x20) {
-                break;
-            }
+        if(option == BUFADDNL_USE_INDENT) {
+            for(size_t i = 0; i < current->data_size; i++) {
+                char c = current->data[i];
+                if(c != 0x20) {
+                    break;
+                }
 
-            num_tabs++;
-            string_add_char(below, 0x20, 0);
+                nm++;
+                string_add_char(below, 0x20, 0);
+            }
         }
     }
     
     buf->cursor_px = 0;
 
     buffer_update_content_xoff(buf);
-    move_cursor_to(buf, num_tabs, buf->cursor_y+1);
+    move_cursor_to(buf, nm, buf->cursor_y+1);
     ok = 1;
 
 

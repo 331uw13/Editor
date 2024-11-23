@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include "string.h"
+#include "selectreg.h"
 
 #define BUFFER_INIT_SIZE 8
 #define LINENUM_BUF_SIZE 28
@@ -11,17 +12,6 @@
 
 struct editor_t;
 
-struct select_t {
-    
-    long int x0; // begin position
-    long int y0; //
-
-    long int x1; // end position
-    long int y1; //
-
-    int inverted;
-    size_t scroll_point; // the point where select mode was enabled.
-};
 
 struct buffer_file_t {
     char  name[BUFFER_MAX_FILENAME_SIZE+1];
@@ -30,24 +20,27 @@ struct buffer_file_t {
     int      readonly;
 };
 
-#define BUFMODE_INSERT  0
-#define BUFMODE_SELECT  1
-#define BUFMODE_REPLACE 2
-#define BUFMODE_NONE    3 // this mode may be set so user can change the mode to different one.
-#define BUFMODE_INVALID 4
+#define BUFMODE_INSERT   0
+#define BUFMODE_SELECT   1
+#define BUFMODE_REPLACE  2
+#define BUFMODE_B_SELECT 3
+#define BUFMODE_NONE     4 // this mode may be set so user can change the mode to different one.
+#define BUFMODE_INVALID  5
 
 #define BUFFER_MODE_INDICSIZE 3
 static const unsigned char BUFFER_MODE_INDICATORS[][BUFFER_MODE_INDICSIZE] = {
     "[i]",  /* insert */
     "[s]",  /* select */
     "[r]",  /* replace */
+    "[b]",  /* block select */
     "[-]"   /* none    */
 
 };
 static const unsigned int BUFFER_MODE_INDICCOLORS[] = {
-    0x1aba37, /* insert */
+    0x1aba37, /* insert */ 
     0xb848a5, /* select */
     0xe65b20, /* replace */
+    0xc44569, /* block select */
     0x30c2c9  /* none    */
 };
 
@@ -75,6 +68,7 @@ struct buffer_t {
     int height;
     
     struct select_t select;
+
     struct string_t* current; // &lines[buffer->cursor_y],
                               // set everytime move_cursor_to is called.
     size_t scroll;
@@ -122,6 +116,8 @@ void  buffer_scroll   (struct buffer_t* buf, int offset);
 #define PROCSELECTED_BEGIN 1  // flags
 #define PROCSELECTED_END 2    //
 void buffer_swap_selected(struct buffer_t* buf);
+int  buffer_remove_selected(struct buffer_t* buf);
+
 void buffer_proc_selected_reg(struct buffer_t* buf, void* userptr,
         int(*callback)
         (
@@ -131,6 +127,9 @@ void buffer_proc_selected_reg(struct buffer_t* buf, void* userptr,
             int,    // flag
             void*   // user pointer
         ));
+
+void buffer_copy_selected(struct editor_t* ed, struct buffer_t* buf);
+void buffer_paste_clipboard(struct editor_t* ed, struct buffer_t* buf);
 
 // NOTE: 'move_cursor_to' sets the scroll if row is offscreen
 void  move_cursor_to(struct buffer_t* buf, long int col, long int row);
@@ -142,7 +141,10 @@ void    buffer_shift_data(struct buffer_t* buf, size_t row, int direction);
 
 // find the last line that has some data in it.
 size_t  buffer_find_last_line(struct buffer_t* buf);
-int     buffer_add_newline(struct buffer_t* buf, size_t col, size_t row);
+
+#define BUFADDNL_NO_INDENT 0   // options for 'buffer_add_newline'
+#define BUFADDNL_USE_INDENT 1  // 
+int     buffer_add_newline(struct buffer_t* buf, size_t col, size_t row, int option);
 int     buffer_remove_line(struct buffer_t* buf, size_t row);
 int     buffer_remove_lines(struct buffer_t* buf, size_t row, size_t n);
 

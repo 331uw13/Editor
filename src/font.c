@@ -156,9 +156,9 @@ int unload_font(struct font_t* font) {
 
         font->ready = 0;
         res = 1;
+    
+        printf(" unloaded font.\n");
     }
-
-    printf(" unloaded font.\n");
 
     return res;
 }
