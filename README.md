@@ -24,6 +24,7 @@ zig build && ./zig-out/bin/editor
 | `CTRL + A` | Goto start of the line |
 | `CTRL + S` | Goto middle of the line |
 | `CTRL + W` | Write to file |
+| `CTRL + V` | Paste clipboard to cursor position |
 | `CTRL + P` | Command line mode |
 | `CTRL + TAB` | Cycle through active buffers |
 | `CTRL + LEFT/RIGHT/UP/DOWN` | Movement multiplied by 4 |
@@ -37,12 +38,23 @@ zig build && ./zig-out/bin/editor
 | --- | --- |
 | `c` | Insert mode |
 | `s` | Select mode |
+| `d` | B Select mode (just different type select mode, doesnt select columns only rows) |
 | `a` | Replace mode |
 
 ## Select mode Keybinds
 | Key | Description |
 | --- | --- |
-| `d` | Delete selected region |
+| `q` | Delete selected region |
+| `c` | Copy selected region |
+| `d` | Copy and then delete selected region |
+
+## B - Select mode Keybinds
+| Key | Description |
+| --- | --- |
+| `1` | Move selected rows left by font tab width |
+| `2` | Move selected rows right by font tab width |
+
+
 
 ## Commands
 `q.` quit without asking to save
