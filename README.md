@@ -26,12 +26,15 @@ zig build && ./zig-out/bin/editor
 | `CTRL + W` | Write to file |
 | `CTRL + V` | Paste clipboard to cursor position |
 | `CTRL + P` | Command line mode |
-| `CTRL + TAB` | Cycle through active buffers |
+| `CTRL + E` | Remove current line |
+| `CTRL + TAB` | Cycle through tabs |
 | `CTRL + LEFT/RIGHT/UP/DOWN` | Movement multiplied by 4 |
 | `CTRL + SHIFT + UP` | Goto start of the buffer |
 | `CTRL + SHIFT + DOWN` | Goto end of the buffer |
 | `SHIFT + LEFT/RIGHT` | Move by 1 word |
 | `SHIFT + UP/DOWN` | Move up/down but skip rows containing only whitespace |
+| `ALT + TAB` | Toggle tabs |
+| `ALT + LEFT/RIGHT` | Move through tabs |
 
 ## Mode options
 | Key | Description |
@@ -51,8 +54,8 @@ zig build && ./zig-out/bin/editor
 ## B - Select mode Keybinds
 | Key | Description |
 | --- | --- |
-| `1` | Move selected rows left by font tab width |
-| `2` | Move selected rows right by font tab width |
+| `a` | Move selected rows left by font tab width |
+| `d` | Move selected rows right by font tab width |
 
 
 
