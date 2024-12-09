@@ -174,7 +174,8 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
                 
                 str = buffer_get_string(buf, y);//buf->lines[y];
                 if(!str) {
-                    PRINTERR("buffer line is NULL");
+                    fprintf(stderr, "[ERROR] %s | buffer line %li is NULL\n",
+                            __func__, y);
                     goto error_and_close;
                 }
             }

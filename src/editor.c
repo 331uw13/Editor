@@ -28,8 +28,14 @@ void _framebuffer_size_callback(GLFWwindow* win, int width, int height) {
         }
 
         printf("resized window:%ix%i\n", ed->window_width, ed->window_height);
-    
-        set_buffer_dimensions(ed);
+   
+        for(int i = 0; i < ed->num_buffers; i++) {
+            struct buffer_t* buf = &ed->buffers[i];
+            buf->height = height;
+            buf->width = width;
+            buf->max_col = width / CELLW;
+            buf->max_row = height / CELLH;
+        }
     }
 
 }
@@ -40,11 +46,11 @@ void do_safety_check(struct editor_t* ed) {
         return;
     }
 
-    if(ed->current_buf_id > MAX_BUFFERS) {
-        ed->current_buf_id = MAX_BUFFERS;  
+    if(ed->current_bufid > MAX_BUFFERS) {
+        ed->current_bufid = MAX_BUFFERS;  
     }
 
-    struct buffer_t* buf = &ed->buffers[ed->current_buf_id];
+    struct buffer_t* buf = &ed->buffers[ed->current_bufid];
     
 
     // TODO: halt program and draw fatal error messages on screen
@@ -178,11 +184,11 @@ error:
     return res;
 }
 
-
-void set_buffer_dimensions(struct editor_t* ed) {
+/*
+void _buffer_layout(struct editor_t* ed) {
     
     struct buffer_t* buf = NULL;
-    int num_bufs = iclamp(ed->num_active_buffers, 0, MAX_BUFFERS);
+    int num_bufs = iclamp(ed->num_buffers, 0, MAX_BUFFERS);
 
     if(num_bufs == 0) {
         fprintf(stderr, "number of active buffers is zero.\n");
@@ -212,9 +218,126 @@ void set_buffer_dimensions(struct editor_t* ed) {
 
     }
 }
+*/
 
-void move_buffer_to(struct editor_t* ed, struct buffer_t* buf, int x, int y) {
+
+int editor_add_buffer(struct editor_t* ed) {
+    int res = 0;
+
+    unsigned int nextindex = ed->num_buffers + 1;
+    if(nextindex >= MAX_BUFFERS) {
+        write_message(ed, ERROR_MSG, "Max buffers reached.\0");
+        goto error;
+    }
+
+    struct buffer_t* buf = &ed->buffers[ed->num_buffers];
+
+    if(buf->ready) {
+        write_message(ed, ERROR_MSG, "Buffer with id %i seems to be already created.\0", 
+                buf->id);
+        goto error;
+    }
+
+    if(!create_buffer(ed, buf, ed->num_buffers)) {
+        goto error;
+    }
+
+    //set_buffer_layout(ed, buf, 0, 0);
+
+    ed->num_buffers = nextindex;
+
+    // TODO: dont change this if used has set it to not visible
+    if(ed->num_buffers > 1) {
+        ed->show_tabs = 1;
+    }
+
+    res = 1;
+
+error:
+    return res;
 }
+/*
+static void buffer_layout_R(struct editor_t* ed, struct buffer_t* buf, int x, int y, int w, int h) {
+    buf->x = x;
+    buf->y = y;
+    buf->width = w;
+    buf->height = h;
+    buf->max_col = buf->width / CELLW;
+    buf->max_row = buf->height / CELLH;
+}
+
+void editor_dump_buffer_layout(struct editor_t* ed) {
+    printf("---- Editor Buffer Layout ---\n");
+
+    for(int i = 0; i < LAYOUT_MAX_BUFFERS; i++) {
+        struct buffer_t* lb = ed->layout[i];
+        if(lb) {
+            printf(" \033[32m%i\033[0m: \033[34mID: %i\033[0m, X: %i, Y: %i,"
+                    " W: %i, H: %i, MAXCOL: %i, MAXROW: %i\n",
+                    i, lb->id, lb->x, lb->y, lb->width, lb->height,
+                    lb->max_col, lb->max_row);
+        }
+        else {
+            printf(" \033[90m%i: <NULL>\033[0m\n", i);
+        }
+    }
+
+    printf("-----------------------------\n");
+}
+
+void set_buffer_layout(struct editor_t* ed, struct buffer_t* buf, int lcol, int lrow) {
+   
+    if(!buffer_ready(buf)) {
+        return;
+    }
+
+
+    const int cw = CELLW;
+    const int ch = CELLH;
+
+    int max_h = ed->window_height - ch;
+    int max_w = ed->window_width;
+
+
+    int lwidth = ed->window_width;
+    int lheight = ed->window_height;
+    int lx = 0;
+    int ly = 0;
+
+    int layout_index = (lrow * 2 + lcol);
+    struct buffer_t* lb = ed->layout[layout_index];
+
+    if(lrow == 0) {
+        if(lb) {
+            if(lb->id == buf->id)  {
+                fprintf(stderr, "[WARNING] %s | nothing to do the id's match.\n",
+                        __func__);
+                return;
+            }
+
+            // different buffer already exists at 'layout_index' move it to 'next_index'.
+            // horizontal.
+            
+            int next_index = (layout_index+1)%2;
+            printf("buffer %p(%i) at %i, move existing to %i\n",
+                    lb, lb->id, layout_index, next_index);
+
+            ed->layout[next_index] = lb;
+            ed->layout[layout_index] = buf;
+
+            lwidth /= 2;
+
+            buffer_layout_R(ed, lb, lwidth, ly, lwidth, lheight);
+        }
+        else {
+            ed->layout[layout_index] = buf;
+        }
+       
+        buffer_layout_R(ed, buf, lx, ly, lwidth, lheight);
+    }
+
+}
+*/
 
 
 void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h) {
@@ -382,6 +505,7 @@ void draw_error_buffer(struct editor_t* ed) {
 
     set_color_hex(ed, 0x201310);
 
+
     int lines_shown = count_data_linewraps(
             ed->error_buf, ed->error_buf_size, chars_shown) + 2;
 
@@ -430,33 +554,18 @@ void draw_info_buffer(struct editor_t* ed) {
     draw_data(ed, x+ed->font.char_w+20, y, ed->info_buf, ed->info_buf_size, DRW_NO_GRID);
 }
 
-
-int create_buffers(struct editor_t* ed) {
-    int ok = 0;
-
-    for(int i = 0; i < MAX_BUFFERS; i++) {
-        struct buffer_t* buf = &ed->buffers[i];
-        if(buf) {
-            if(!create_buffer(ed, buf, i)) {
-                fprintf(stderr, "buffer '%i' failed to initialize.\n", i);
-                goto error;
-            }
-        }
-    }
-    ok = 1;
-
-error:
-    return ok;
-}
-
-struct editor_t* init_editor(const char* fontfile, 
+int init_editor(struct editor_t* ed, const char* fontfile, 
         int window_width, int window_height, int fullscreen) {
+
+    int result = 0;
 
     if(!fontfile) {
         fprintf(stderr, "the font file cant be NULL.\n");
         goto giveup;
     }
 
+    
+    /*
     struct editor_t* ed = NULL;
     ed = malloc(sizeof *ed);
 
@@ -464,31 +573,57 @@ struct editor_t* init_editor(const char* fontfile,
         fprintf(stderr, "failed to allocate memory for editor!\n");
         goto giveup;
     }
+    */
 
     ed->ready = 0;
-    ed->mode = -1;
     ed->win = NULL;
     ed->window_width = 0;
     ed->window_height = 0;
-    ed->current_buf_id = 0;
+    ed->current_bufid = 0;
     ed->max_row = 0;
     ed->max_column = 0;
-    ed->num_active_buffers = 1;
+    ed->num_buffers = 0;
     ed->vbo = 0;
     ed->vao = 0;
     ed->shader = 0;
     ed->shader_color_uniloc = -1;
     ed->cmd_cursor = 0;
+    ed->mode = -1;
+    ed->glfwinitsuccess = 0;
+    ed->error_buf_size = 0;
+    ed->info_buf_size = 0;
+    ed->num_vi_buffers = 0;
+    ed->show_tabs = 0;
+
+    for(unsigned int i = 0; i < LAYOUT_MAX_BUFFERS; i++) {
+        ed->layout[i] = NULL;
+    }
+
+    for(unsigned int i = 0; i < MAX_BUFFERS; i++) {
+        struct buffer_t* buf = &ed->buffers[i];
+        buf->x = 0;
+        buf->y = 0;
+        buf->width = 0;
+        buf->height = 0;
+        buf->max_col = 0;
+        buf->max_row = 0;
+        buf->id = -1;
+        buf->ready = 0;
+        buf->lines = NULL;
+    }
+
 
     init_colors(ed);
-    init_mem_static_vars();
+    //init_mem_static_vars();
 
     if(!glfwInit()) { 
         // TODO  handle glfw errors better!
         fprintf(stderr, "glfw failed to initialize.\n");
         goto giveup;
     }
-   
+  
+    ed->glfwinitsuccess = 1;
+
     printf("+ initialized glfw.\n");
 
     glfwWindowHint(GLFW_SCALE_TO_MONITOR, fullscreen);
@@ -532,7 +667,8 @@ struct editor_t* init_editor(const char* fontfile,
                 FONT_FRAGMENT_SHADER_SRC)) {
         goto giveup;
     }
-    printf("font loaded '%s'\n", fontfile);
+
+    printf("+ font loaded '%s'\n", fontfile);
 
 
     ed->max_column = ed->window_width / CELLW;
@@ -562,64 +698,64 @@ struct editor_t* init_editor(const char* fontfile,
    
     ed->shader_color_uniloc = glGetUniformLocation(ed->shader, "v_color");
     if(ed->shader_color_uniloc < 0) {
-        fprintf(stderr, "'init_editor': failed to get shader uniform location\n");
+        fprintf(stderr, "[ERROR] %s | failed to get shader uniform location\n",
+                __func__);
         goto giveup;
     }
 
     memset(ed->error_buf, 0, ERROR_BUFFER_MAX_SIZE);
     memset(ed->info_buf, 0, INFO_BUFFER_MAX_SIZE);
+    /*
     if(!create_buffers(ed)) {
         goto giveup;
     }
+    */
 
     ed->cmd_str = create_string(COMMAND_LINE_MAX_SIZE);
     ed->clipbrd = create_string(CLIPBOARD_INIT_SIZE);
 
+
     //  -- ready.
+
     ed->mode = MODE_NORMAL;
     ed->ready = 1;
 
+    result = 1;
+
+    printf("\033[32meditor is initialized.\033[0m\n");
 
 giveup:
-    return ed;
+    return result;
 }
 
 
-void cleanup_editor(struct editor_t** e) {
-    if((*e)) {
-        for(int i = 0; i < MAX_BUFFERS; i++) {
-            delete_buffer(&(*e)->buffers[i]);
+void cleanup_editor(struct editor_t* e) {
+    
+    for(int i = 0; i < e->num_buffers; i++) {
+        delete_buffer(&e->buffers[i]);
+    }
+
+    if(e->glfwinitsuccess) {
+        if(e->win) {
+            glfwDestroyWindow(e->win);
+            e->win = NULL;
+            printf(" window deleted.\n");
         }
 
+        glfwTerminate();
 
-        if((*e)->win) {
-            glfwDestroyWindow((*e)->win);
-            (*e)->win = NULL;
-        }
-     
-        if((*e)->ready) {
-            glfwTerminate();
-        }
+        printf(" glfw terminated.\n");
+    }
 
-        unload_font(&(*e)->font);
-        delete_shader_program((*e)->shader);
-        delete_string(&(*e)->cmd_str);
-        delete_string(&(*e)->clipbrd);
+    unload_font(&e->font);
 
-        if((*e)->vbo) {
-            glDeleteBuffers(1, &(*e)->vbo);
-        }
-        if((*e)->vao) {
-            glDeleteVertexArrays(1, &(*e)->vao);
-        }
-
-
-        (*e)->ready = 0;
-
-        free(*e);
-        *e = NULL;
-
-        printf("cleanup done.\n");
+    if(e->vbo) {
+        glDeleteBuffers(1, &e->vbo);
+        printf(" vbo deleted.\n");
+    }
+    if(e->vao) {
+        glDeleteVertexArrays(1, &e->vao);
+        printf(" vao deleted\n");
     }
 }
 

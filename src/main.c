@@ -14,12 +14,17 @@ void run_loop(struct editor_t* ed) {
     if(!ed) { return; }
     if(!ed->ready) { return; }
 
-    read_file(ed, 0, "for-testing/test.txt\0", 0);
-    read_file(ed, 1, "for-testing/another_file.txt\0", 0);
- 
-    ed->num_active_buffers = 2;
-    set_buffer_dimensions(ed);
+    editor_add_buffer(ed);
+    read_file(ed, 0, "for-testing/another_file.txt\0", 0);
+    
+    editor_add_buffer(ed);
+    read_file(ed, 1, "for-testing/test.txt\0", 0);
 
+    editor_add_buffer(ed);
+    read_file(ed, 2, "for-testing/bla.sh\0", 0);
+
+    editor_add_buffer(ed);
+    read_file(ed, 3, "for-testing/verylongnameforthisfilefortestingreasonsidontknowhello\0", 0);
 
     while(!glfwWindowShouldClose(ed->win)) {
         glClear(GL_COLOR_BUFFER_BIT);
@@ -39,13 +44,15 @@ void run_loop(struct editor_t* ed) {
 int main(int argc, char** argv) {
 
 
-    struct editor_t* ed = 
-        init_editor("Topaz-8.ttf", 1200, 750, !INIT_FULLSCREEN);
-    
-    if(ed) {
-        run_loop(ed);
-        cleanup_editor(&ed);
+    struct editor_t ed;
+
+    if(!init_editor(&ed, "Topaz-8.ttf", 1200, 750, INIT_FULLSCREEN)) {
+        fprintf(stderr, "failed to initialize editor. return 1.");
+        return 1;
     }
+
+    run_loop(&ed);
+    cleanup_editor(&ed);
 
     printf("Exit\n");
     return 0;

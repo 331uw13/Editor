@@ -107,11 +107,11 @@ static void _key_mod_input_CONTROL(struct editor_t* ed, struct buffer_t* buf, in
             break;
 
         case GLFW_KEY_TAB:
-            if(ed->current_buf_id+1 >= ed->num_active_buffers) {
-                ed->current_buf_id = 0;
+            if(ed->current_bufid+1 >= ed->num_buffers) {
+                ed->current_bufid = 0;
             }
             else {
-                ed->current_buf_id++;
+                ed->current_bufid++;
             }
             break;
         
@@ -149,7 +149,22 @@ static void _key_mod_input_CONTROL(struct editor_t* ed, struct buffer_t* buf, in
 static void _key_mod_input_ALT(struct editor_t* ed, struct buffer_t* buf, int key) {
     switch(key) {
 
+        case GLFW_KEY_TAB:
+            ed->show_tabs = !ed->show_tabs;
+            break;
 
+        case GLFW_KEY_LEFT:
+            if(ed->current_bufid > 0) {
+                ed->current_bufid--;
+            }
+            break;
+
+
+        case GLFW_KEY_RIGHT:
+            if(ed->current_bufid+1 < ed->num_buffers) {
+                ed->current_bufid++;
+            }
+            break;
 
         default:break;
     }
@@ -313,17 +328,26 @@ static void _key_mod_input_SHIFTCTRL(struct editor_t* ed, struct buffer_t* buf, 
 }
 
 void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int mods) {
-    struct editor_t* ed = glfwGetWindowUserPointer(win);
+    struct editor_t* ed = NULL;
+    ed = glfwGetWindowUserPointer(win);
     
-    if(action == GLFW_RELEASE) { return; }
-    if(!ed) { return; }
+    if(action == GLFW_RELEASE) { 
+        return;
+    }
 
-    struct buffer_t* buf = &ed->buffers[ed->current_buf_id];
+    if(ed == NULL) { 
+        fprintf(stderr, "[ERROR] %s | glfwGetWindowUserPointer failed\n",
+                __func__);
+        return;
+    }
+
+    struct buffer_t* buf = &ed->buffers[ed->current_bufid];
     clear_info_buffer(ed);
 
     if(buf->mode == BUFMODE_NONE) {
         return;
     }
+    
 
     if(mods) {
         switch(mods) {
@@ -387,10 +411,12 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
                         break;
 
                     case GLFW_KEY_TAB:
-                        for(int i = 0; i < FONT_TAB_WIDTH; i++) {
-                            string_add_char(buf->current, 0x20, buf->cursor_x);
+                        if(buf->mode == BUFMODE_INSERT) {
+                            for(int i = 0; i < FONT_TAB_WIDTH; i++) {
+                                string_add_char(buf->current, 0x20, buf->cursor_x);
+                            }
+                            move_cursor(buf, FONT_TAB_WIDTH, 0);
                         }
-                        move_cursor(buf, FONT_TAB_WIDTH, 0);
                         break;
 
                     case GLFW_KEY_DELETE:
@@ -470,17 +496,16 @@ static void select_mode_keypress(struct editor_t* ed, struct buffer_t* buf, unsi
                 buffer_change_mode(ed, buf, BUFMODE_INSERT);
             }
             break;
-
     }
 }
 
 static void b_select_mode_keypress(struct editor_t* ed, struct buffer_t* buf, unsigned int codepoint) {
    switch(codepoint) { 
-        case '1':
+        case 'a':
             buffer_proc_selected_reg(buf, ed,  dec_selected_reg_indent_callback);
             break;
 
-        case '2':
+        case 'd':
             buffer_proc_selected_reg(buf, ed,  inc_selected_reg_indent_callback);
             break;
    }
@@ -498,7 +523,7 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
 
         case MODE_NORMAL:
             {
-                struct buffer_t* buf = &ed->buffers[ed->current_buf_id];
+                struct buffer_t* buf = &ed->buffers[ed->current_bufid];
                 if(!buffer_ready(buf)) {
                     return;
                 }
@@ -579,7 +604,7 @@ void scroll_input_handler(GLFWwindow* win, double xoff, double yoff) {
     struct editor_t* ed = glfwGetWindowUserPointer(win);
     if(!ed) { return; }
 
-    struct buffer_t* buf = &ed->buffers[ed->current_buf_id];
+    struct buffer_t* buf = &ed->buffers[ed->current_bufid];
     int iyoff = (int)-yoff;
     
     buffer_scroll(buf, iyoff);

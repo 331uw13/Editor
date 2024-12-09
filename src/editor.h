@@ -16,7 +16,7 @@
 #include "config.h" // TODO
 
 
-#define MAX_BUFFERS 4
+#define MAX_BUFFERS 16
 #define ERROR_BUFFER_MAX_SIZE 256
 #define INFO_BUFFER_MAX_SIZE 96
 #define EDITOR_X_PADDING 8
@@ -40,6 +40,7 @@
 #define MODE_COMMAND_LINE 1
 #define MODE_CONFIRM_CHOICE 2
 
+#define LAYOUT_MAX_BUFFERS 4
 
 struct editor_t {
 
@@ -47,8 +48,11 @@ struct editor_t {
     struct font_t font;
 
     struct buffer_t buffers[MAX_BUFFERS];
-    unsigned int current_buf_id;
-    unsigned int num_active_buffers;
+    unsigned int current_bufid;
+    unsigned int num_buffers;
+
+    struct buffer_t* layout[LAYOUT_MAX_BUFFERS];
+    unsigned int num_vi_buffers; // visible buffers.
 
     int mode;
 
@@ -57,6 +61,7 @@ struct editor_t {
     int max_column;
     int max_row;
 
+    int show_tabs;
 
     unsigned int vbo; // vertex buffer object
     unsigned int vao; // vertex array object
@@ -83,8 +88,7 @@ struct editor_t {
 
     unsigned int colors[NUM_COLORS];
 
-    // set to 1 if init_editor() returns with pointer,
-    //                           GLFW is initialized and everything should be fine.
+    int glfwinitsuccess;
     int ready;
 };
 
@@ -102,10 +106,14 @@ long int loc_to_row(struct editor_t* ed, float row);
 //       if error happens returns 0
 int confirm_user_choice(struct editor_t* ed, char* question);
 
-// figure out where each buffer should be.
-void set_buffer_dimensions(struct editor_t* ed);
-void move_buffer_to(struct editor_t* ed, struct buffer_t* buf, int x, int y);
 
+// BUFFER CONTROL ----- 
+
+int editor_add_buffer(struct editor_t* ed);
+void set_buffer_layout(struct editor_t* ed, 
+        struct buffer_t* buf, int lcol, int lrow);
+
+// --------
 
 // map X, Y, WIDTH, HEIGHT to -1.0 - +1.0
 void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h);
@@ -121,17 +129,15 @@ void clear_info_buffer(struct editor_t* ed);
 void draw_error_buffer(struct editor_t* ed);
 void draw_info_buffer(struct editor_t* ed);
 
-int setup_buffers(struct editor_t* ed);
-struct editor_t* init_editor(
+//int setup_buffers(struct editor_t* ed);
+int init_editor(
+        struct editor_t* ed,
         const char* fontfile,
         int window_width, int window_height,
         int fullscreen);
 
-void cleanup_editor(struct editor_t** e);
+void cleanup_editor(struct editor_t* e);
 
-
-void clipboard_set(struct editor_t* ed, char* data, size_t size);
-void clipboard_clear(struct editor_t* ed);
-
+void editor_dump_buffer_layout(struct editor_t* ed);
 
 #endif

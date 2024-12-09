@@ -430,6 +430,10 @@ int count_data_linewraps(char* data, size_t size, int max_line_size) {
     int count = 0;
     int x = 0;
 
+    if(!data) {
+        goto error;
+    }
+
     for(size_t i = 0; i < size; i++) {
         if(data[i] == 0xA) {
             count++;
@@ -441,7 +445,7 @@ int count_data_linewraps(char* data, size_t size, int max_line_size) {
             x = 0;
         }
     }
-
+error:
     return count;
 }
 

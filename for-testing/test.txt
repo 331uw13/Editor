@@ -1,3 +1,4 @@
+y
 dsfsdfdsstart
 /*
     TEST FILE.
@@ -27,13 +28,8 @@ size_t count(char* str, size_t len) {
     }
     
     
-    return n;
-}
 
-
-for(long int i = 0; i < size; i++) {
-    char c = data[i];
-    
+bruh
     switch(c) {
         case 0x9:
             x += xinc * FONT_TAB_WIDTH;

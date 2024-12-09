@@ -49,18 +49,18 @@ void execute_cmd(struct editor_t* ed, struct string_t* str) {
         }
     }
 
-    struct buffer_t* buf = &ed->buffers[ed->current_buf_id];
+    struct buffer_t* buf = &ed->buffers[ed->current_bufid];
 
     if(argc > 0) {
 
         switch(djb2_hash(args[0])) {
            
             case CMD_TEST1:
-                read_file(ed, ed->current_buf_id, "for-testing/another_file.txt\0", 0);
+                read_file(ed, ed->current_bufid, "for-testing/another_file.txt\0", 0);
                 break;
 
             case CMD_TEST2:
-                read_file(ed, ed->current_buf_id, "for-testing/test.txt\0", 0);
+                read_file(ed, ed->current_bufid, "for-testing/test.txt\0", 0);
                 break;
 
             case CMD_QDOT:
@@ -68,16 +68,18 @@ void execute_cmd(struct editor_t* ed, struct string_t* str) {
                 break;
 
             case CMD_OPEN_NEW:
+                /*
                 if(argc < 2) {
                     write_message(ed, ERROR_MSG, "Usage: open-new <filename>\0");
                     goto done;
                 }
-                if(ed->num_active_buffers+1 >= MAX_BUFFERS) {
+                if(ed->num_buffers+1 >= MAX_BUFFERS) {
                     write_message(ed, ERROR_MSG, "Oops, max buffers reached.\0");
                     goto done;
                 }
-                read_file(ed, ed->num_active_buffers++, args[1], strlen(args[1]));
+                read_file(ed, ed->num_buffers++, args[1], strlen(args[1]));
                 set_buffer_dimensions(ed);
+                */
                 break;
 
             case CMD_OPEN:
@@ -85,12 +87,12 @@ void execute_cmd(struct editor_t* ed, struct string_t* str) {
                     write_message(ed, ERROR_MSG, "Usage: open <filename>\0");
                     goto done;
                 }
-                read_file(ed, ed->current_buf_id, args[1], strlen(args[1]));
+                read_file(ed, ed->current_bufid, args[1], strlen(args[1]));
                 break;
 
             case CMD_WRITE:
                 if(argc < 2) {
-                    write_file(ed, ed->current_buf_id, NULL);
+                    write_file(ed, ed->current_bufid, NULL);
                 }
                 else if (argc == 2) {
                     if(access(args[1], F_OK) != 0) {
@@ -98,7 +100,7 @@ void execute_cmd(struct editor_t* ed, struct string_t* str) {
                             goto done;
                         }
                     }
-                    write_file(ed, ed->current_buf_id, args[1]);
+                    write_file(ed, ed->current_bufid, args[1]);
                 }
                 break;
 

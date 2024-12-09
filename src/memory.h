@@ -27,6 +27,6 @@ void* safe_resize_array
 // ptr is set to NULL after calling this function.
 void safe_free(void** ptr); // --- NOT IMPLEMENTED YET ---
 
-void init_mem_static_vars();
+//void init_mem_static_vars();
 
 #endif

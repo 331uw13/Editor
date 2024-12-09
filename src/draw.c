@@ -288,7 +288,7 @@ size_t draw_data_w(struct editor_t* ed,
 }
 
 
-static void draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf, int is_current) {
+static void draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf) {
     if(!buffer_ready(buf)) {
         return;
     }
@@ -306,20 +306,18 @@ static void draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf, int is_
 
     // filename stuff
     //
-    set_color_hex(ed, is_current 
-            ? ed->colors[BAR_COLOR_A] : ed->colors[BAR_COLOR_B]);
+    set_color_hex(ed, ed->colors[BAR_COLOR_A]);
     draw_rect(ed,
             buf->x,
-            buf->y + buf->height,
+            buf->y + buf->height - CELLH,
             buf->width,
             CELLH,
             MAP_XYWH, DRW_NO_GRID);
    
-    font_set_color_hex(&ed->font, is_current 
-            ? ed->colors[FILENAME_COLOR_A] : ed->colors[FILENAME_COLOR_B]);
+    font_set_color_hex(&ed->font, ed->colors[FILENAME_COLOR_A]);
     draw_data(ed,
             buf->x + CELLW*3 + 15,
-            buf->y + buf->height,
+            buf->y + buf->height - CELLH,
             buf->file.name,
             buf->file.name_size,
             DRW_NO_GRID);
@@ -329,7 +327,7 @@ static void draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf, int is_
     font_set_color_hex(&ed->font, BUFFER_MODE_INDICCOLORS[buf->mode]);
     draw_data(ed,
             buf->x + 10,
-            buf->y + buf->height,
+            buf->y + buf->height - CELLH,
             buf->mode_indicstr, BUFFER_MODE_INDICSIZE,
             DRW_NO_GRID);
 
@@ -354,7 +352,6 @@ static void draw_buffer(
         return;
     }
 
-
     struct string_t* line = NULL;
     const int xdrw_off = buf->content_xoff;
 
@@ -364,7 +361,7 @@ static void draw_buffer(
 
 
     for(size_t i = buf->scroll; i < buf->num_used_lines; i++) {
-        if(i >= buf->max_row + buf->scroll) {
+        if(i > buf->max_row + buf->scroll) {
             break;
         }
 
@@ -606,71 +603,138 @@ error:
     return res;
 }
 
+
+#define TABNAME_MAX_CHARS 16
+
+static void draw_tabs(struct editor_t* ed) {
+
+
+    if(!ed->show_tabs) {
+        return;
+    }
+
+    const int cw = CELLW;
+    const int ch = CELLH;
+
+    set_color_hex(ed, 0x24211d);
+
+    int tabname_x = cw*2;
+    int tabname_y = ed->window_height - ch*2;
+    draw_rect(ed,
+            0, tabname_y,
+            ed->window_width, ch,
+            MAP_XYWH, DRW_NO_GRID);
+
+
+
+    for(size_t i = 0; i < ed->num_buffers; i++) {
+        struct buffer_t* buf = &ed->buffers[i];
+
+        if(buf->file.name_size > 0) {
+
+            int currentbuf = (i == ed->current_bufid);
+ 
+            if(currentbuf) {
+                font_set_color_hex(&ed->font, 0x68d44e);
+                draw_char(ed, tabname_x, tabname_y, '*', DRW_NO_GRID);
+                tabname_x += cw;
+            }
+
+            int toolong_name = (buf->file.name_size > TABNAME_MAX_CHARS);
+
+            size_t tabname_size = toolong_name ? TABNAME_MAX_CHARS : buf->file.name_size;
+            size_t offset = toolong_name ? buf->file.name_size-TABNAME_MAX_CHARS : 0;
+
+
+
+            font_set_color_hex(&ed->font, currentbuf ? 0x649459 : 0x4f7047);
+            draw_data(ed, tabname_x, tabname_y,
+                    
+                    buf->file.name + offset, 
+                    tabname_size,
+                    
+                    DRW_NO_GRID);
+            
+            tabname_x += tabname_size * cw + cw*2;
+
+        }
+        else {
+            
+        }
+
+
+
+    }
+
+
+
+}
+
+
 void draw_buffers(struct editor_t* ed) {
     
     char linenum_buf[LINENUM_BUF_SIZE];
 
-    int num_bufs = iclamp(ed->num_active_buffers, 0, MAX_BUFFERS);
-    struct buffer_t* buf = NULL;
-    for(int i = 0; i < num_bufs; i++) {
-        buf = &ed->buffers[i];
-        if(!buffer_ready(buf)) {
-            write_message(ed, ERROR_MSG, "Uninitialized buffer(%i).\0", i);
-            continue;
-        }
-
-        draw_buffer_frame(ed, buf, i == ed->current_buf_id);
-        
-        if(buf->mode == BUFMODE_SELECT) {
-            buffer_proc_selected_reg(buf, ed, draw_selected_callback);
-        }
-        else if(buf->mode == BUFMODE_B_SELECT) {
-            buffer_proc_selected_reg(buf, ed, draw_B_selected_callback);
-        }
-        
-        
-        draw_buffer(ed, buf, linenum_buf);
-        draw_cursor(ed, buf);
-
+    struct buffer_t* buf = &ed->buffers[ed->current_bufid];
+    if(!buffer_ready(buf)) {
+        printf("^ '%s'\n", __func__);
+        write_message(ed, ERROR_MSG, "Uninitialized buffer(%i).\0", buf->id);
+        return;
     }
+
+  
+    draw_buffer_frame(ed, buf);
+    
+    if(buf->mode == BUFMODE_SELECT) {
+        buffer_proc_selected_reg(buf, ed, draw_selected_callback);
+    }
+    else if(buf->mode == BUFMODE_B_SELECT) {
+        buffer_proc_selected_reg(buf, ed, draw_B_selected_callback);
+    }
+    
+    draw_tabs(ed);
+    
+    draw_buffer(ed, buf, linenum_buf);
+    draw_cursor(ed, buf);
 
 }
 
 void draw_everything(struct editor_t* ed) {
 
-        draw_buffers(ed);
+    draw_buffers(ed);
 
-        if(ed->mode == MODE_COMMAND_LINE) {
-            set_color_hex(ed, 0x231100);
-            draw_framed_rect(ed, 
-                    5, 3,
-                    ed->window_width-10, ed->font.char_h+8,
-                    0x554510,
-                    1.0,
-                    MAP_XYWH, DRW_NO_GRID);
-            
-            font_set_color_hex(&ed->font, 0x773310);
-            draw_char(ed, 10, 6, '>', DRW_NO_GRID);
-
-
-            // cmd_cursor
-            //
-            set_color_hex(ed, 0x225522);
-            draw_rect(ed, 
-                    10 + (ed->cmd_cursor+1) * ed->font.char_w,
-                    6,
-                    ed->font.char_w,
-                    ed->font.char_h,
-                    MAP_XYWH, DRW_NO_GRID);
-
-            font_set_color_hex(&ed->font, 0xAA6633);
-            draw_data(ed, ed->font.char_w+10, 6, 
-                    ed->cmd_str->data, ed->cmd_str->data_size, DRW_NO_GRID);
-        }
+    if(ed->mode == MODE_COMMAND_LINE) {
+        set_color_hex(ed, 0x231100);
+        draw_framed_rect(ed, 
+                5, 3,
+                ed->window_width-10, ed->font.char_h+8,
+                0x554510,
+                1.0,
+                MAP_XYWH, DRW_NO_GRID);
+        
+        font_set_color_hex(&ed->font, 0x773310);
+        draw_char(ed, 10, 6, '>', DRW_NO_GRID);
 
 
-        draw_error_buffer(ed);
-        draw_info_buffer(ed);
+        // cmd_cursor
+        //
+        set_color_hex(ed, 0x225522);
+        draw_rect(ed, 
+                10 + (ed->cmd_cursor+1) * ed->font.char_w,
+                6,
+                ed->font.char_w,
+                ed->font.char_h,
+                MAP_XYWH, DRW_NO_GRID);
+
+        font_set_color_hex(&ed->font, 0xAA6633);
+        draw_data(ed, ed->font.char_w+10, 6, 
+                ed->cmd_str->data, ed->cmd_str->data_size, DRW_NO_GRID);
+    }
+
+
+    draw_error_buffer(ed);
+    draw_info_buffer(ed);
+
 }
 
 

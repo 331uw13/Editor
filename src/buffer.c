@@ -16,7 +16,8 @@ int create_buffer(struct editor_t* ed, struct buffer_t* buf, int id) {
     }
 
     if(buf->lines != NULL) {
-        fprintf(stderr, "trying to initialize buffer again.\n");
+        fprintf(stderr, "[ERROR] %s | trying to initialize buffer again.\n",
+                __func__);
         goto error;
     }
 
@@ -47,10 +48,10 @@ int create_buffer(struct editor_t* ed, struct buffer_t* buf, int id) {
     buf->prev_scroll = 0;
     buf->ready = 1;
 
-    buf->max_row = 1;  // these are set in 'editor.c' set_buffer_dimensions()
-    buf->max_col = 1;  // ^
-    buf->width = 64;   // ^
-    buf->height = 64;  // ^
+    buf->width = ed->window_width; 
+    buf->height = ed->window_height - CELLH;
+    buf->max_col = buf->width / CELLW;
+    buf->max_row = buf->height / CELLH;
 
     buf->select = (struct select_t) { 0, 0, 0, 0, 0, 0 };
     buf->file = (struct buffer_file_t) { {0}, 0, 0, 0};
@@ -59,7 +60,8 @@ int create_buffer(struct editor_t* ed, struct buffer_t* buf, int id) {
 
     buf->lines = malloc(mem_size);
     if(!buf->lines) {
-        fprintf(stderr, "failed to allocate memory for buffer.\n");
+        fprintf(stderr, "[ERROR] %s | failed to allocate memory for buffer.\n",
+                __func__);
         goto error;
     }
 
@@ -180,13 +182,45 @@ void buffer_update_content_xoff(struct buffer_t* buf) {
 int buffer_ready(struct buffer_t* buf) {
     int res = 0;
     if(buf) {
+
+        if(buf->lines == NULL) {
+            fprintf(stderr, "[ERROR] %s | buf->lines == NULL\n",
+                    __func__);
+            goto giveup;
+        }
+
+        if(buf->num_alloc_lines == 0) {
+            fprintf(stderr, "[ERROR] %s | buf->num_alloc_lines == 0\n",
+                    __func__);
+            goto giveup;
+        }
+
+        if(buf->ready == 0) {
+            fprintf(stderr, "[ERROR] %s | buf->ready == 0\n",
+                    __func__);
+            goto giveup;
+        }
+
+        if(buf->num_used_lines > buf->num_alloc_lines) {
+            fprintf(stderr, "[ERROR] %s | buf->num_used_lines > buf->num_alloc_lines\n",
+                    __func__);
+            goto giveup;
+        }
+
+        res = 1;
+
+        /*
         res = (    buf->lines != NULL 
                 && buf->num_alloc_lines > 0 
                 && buf->ready
                 && buf->num_used_lines <= buf->num_alloc_lines
                 );
         buf->ready = res;
+        */
+giveup:
+        buf->ready = res;
     }
+
 
     return res;
 }

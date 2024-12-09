@@ -76,8 +76,9 @@ void safe_free(void** ptr) {
     printf("safe_free is NOT IMPLEMENTED!\n");
 }
 
-
+/*
 void init_mem_static_vars() {
 }
+*/
 
 

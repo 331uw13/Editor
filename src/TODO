@@ -5,6 +5,7 @@
 
 *   rewrite error messages
 
+*   select b mode: comment/uncomment region
 
 
 *   save a backup file on read and write.
