@@ -14,7 +14,7 @@ zig build && ./zig-out/bin/editor
 ```
 > you can also use gccbuild.sh
 
-![Editor](https://github.com/331uw13/Editor/blob/main/screenshots/Editor_2024-11-10_04-09.png?raw=true)
+![Editor](https://github.com/331uw13/Editor/blob/main/screenshots/2024-12-09_15-10-Editor.png?raw=true)
 
 ## Keybinds
 | Key | Description |
