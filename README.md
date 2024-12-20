@@ -10,9 +10,8 @@
 ```bash
 git clone https://github.com/331uw13/Editor.git
 cd Editor
-zig build && ./zig-out/bin/editor
+./gccbuild.sh r
 ```
-> you can also use gccbuild.sh
 
 > [!CAUTION]
 > Current status: not functioning.
