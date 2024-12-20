@@ -30,15 +30,31 @@ struct buffer_t;
 
 // 'need_mapping'?
 // maps coordinates from 0-'window size' to -1.0 - +1.0
+/*
 #define ALREADY_MAPPED 0
 #define MAP_XYWH 1
+*/
 
-// 'use_grid'?
-// if used, coordinates multiply by cell width/height
-#define DRW_NO_GRID 0
-#define DRW_ONGRID  1
+// options for 'usegrid'
+#define DRW_NO_GRID (1<<0)
+#define DRW_ONGRID  (1<<1)
+// only for 'draw_rect':
+#define DRW_ADJP (1<<2) // adjustment for xy padding (see editor.h)
+#define DRW_NOADJAFTER 0.0, 0.0 // no xy adjustment 
+                                // after converting to grid coordinates
+
+void draw_everything(struct editor_t* ed);
+
+void draw_rect(
+        struct editor_t* ed, struct buffer_t* buf,
+        float x, float y,
+        float w, float h, 
+        int usegrid, 
+        float adj_x, float adj_y); // adjustment after calculating xywh to grid coordinates.
+                                   // DRW_NOADJAFTER should be used for more readability.
 
 
+/*
 void set_color(struct editor_t* ed, float r, float g, float b); // rgb 0.0 - 1.0
 void set_color_hex(struct editor_t* ed, unsigned int hex);
 
@@ -46,15 +62,6 @@ void draw_rect(struct editor_t* ed,
         float x, float y,
         float w, float h,
         int need_mapping, int use_grid);
-
-// set the rect color with 'set_color..' before calling this function.
-void draw_framed_rect(struct editor_t* ed,
-        float x, float y,
-        float w, float h,
-        unsigned int frame_color,
-        float fthickness, 
-        int need_mapping, int use_grid);
-
 
 // NOTE: if 'size' is set to negative value 
 //       with font drawing functions  data is going to be rendered 
@@ -74,8 +81,8 @@ size_t draw_data_w(struct editor_t* ed,
             int use_grid);
 
 void draw_buffers(struct editor_t* ed);
+*/
 
 
-void draw_everything(struct editor_t* ed);
 
 #endif

@@ -14,6 +14,7 @@
 #include "draw.h"
 #include "memory.h"
 
+
 void _framebuffer_size_callback(GLFWwindow* win, int width, int height) {
     glViewport(0, 0, width, height);
 
@@ -22,10 +23,14 @@ void _framebuffer_size_callback(GLFWwindow* win, int width, int height) {
         ed->window_width = width;
         ed->window_height = height;
 
+        const int cols = width / CELLW;
+        const int rows = height / CELLH;
+
         if(ed->font.ready) {
-            ed->max_column = width / CELLW;
-            ed->max_row = height / CELLH;
+            ed->max_column = cols;
+            ed->max_row = rows;
         }
+
 
         printf("resized window:%ix%i\n", ed->window_width, ed->window_height);
    
@@ -33,49 +38,42 @@ void _framebuffer_size_callback(GLFWwindow* win, int width, int height) {
             struct buffer_t* buf = &ed->buffers[i];
             buf->height = height;
             buf->width = width;
-            buf->max_col = width / CELLW;
-            buf->max_row = height / CELLH;
+            buf->max_col = cols;
+            buf->max_row = rows - 1;
         }
     }
 
 }
 
-void do_safety_check(struct editor_t* ed) {
+int is_safe_to_continue(struct editor_t* ed) {
+    int result = 0;
+
     if(!ed) {
-        fprintf(stderr, "oh no... where is my pointer.\n");
-        return;
+        fprintf(stderr, "[ERROR] %s | the main pointer is NULL!\n",
+                __func__);
+        goto done;
     }
 
-    if(ed->current_bufid > MAX_BUFFERS) {
-        ed->current_bufid = MAX_BUFFERS;  
+    if(ed->current_bufid >= MAX_BUFFERS) {
+        ed->current_bufid = MAX_BUFFERS-1;
     }
+
 
     struct buffer_t* buf = &ed->buffers[ed->current_bufid];
-    
-
-    // TODO: halt program and draw fatal error messages on screen
-
     if(!buf->lines) {
-        fprintf(stderr, "buffer is not initialized?\n");
-        // TODO: try to initialize buffer?
-        return;
+        fprintf(stderr, "[ERROR] %s | buffer doesnt seem to be initialized.\n",
+                __func__);
+        goto done;
     }
 
+    buf->cursor_x = liclamp(buf->cursor_x, 0, buf->current->data_size);
+    buf->cursor_y = liclamp(buf->cursor_y, 0, buf->num_used_lines);
 
-    // these things should not happen but just make sure.
 
-    if(buf->cursor_y >= buf->num_used_lines) {
-        buf->cursor_y = buf->num_used_lines;
-    }
+    result = 1;
 
-    if(!buf->current) {
-        buf->current = buf->lines[buf->cursor_y];
-    }
-
-    if(buf->cursor_x > buf->current->data_size) {
-        buf->cursor_x = buf->current->data_size;
-    }
-
+done:
+    return result;
 }
 
 float col_to_loc(struct editor_t* ed, long int col) {
@@ -136,18 +134,19 @@ int confirm_user_choice(struct editor_t* ed, char* question) {
     int old_mode = ed->mode;
     ed->mode = MODE_CONFIRM_CHOICE;
 
+        /*
     while(wait_for_answer && !glfwWindowShouldClose(ed->win)) {
         glClear(GL_COLOR_BUFFER_BIT);
         draw_everything(ed);
 
         set_color_hex(ed, 0x242010);
-        draw_framed_rect(ed,
+        draw_rect(ed,
                 x, y, w, h,
-                0x8E8E50,
-                2.0,
                 MAP_XYWH, DRW_NO_GRID);
 
+                */
 
+        /*
         font_set_color_hex(&ed->font, 0x8E8E4F);
         int num_nl = draw_data_w(ed, 
                 x + CELLW,
@@ -180,6 +179,7 @@ int confirm_user_choice(struct editor_t* ed, char* question) {
 
     ed->mode = old_mode;
 
+                */
 error:
     return res;
 }
@@ -248,7 +248,7 @@ int editor_add_buffer(struct editor_t* ed) {
 
     // TODO: dont change this if used has set it to not visible
     if(ed->num_buffers > 1) {
-        ed->show_tabs = 1;
+        ed->tabs_visible = 1;
     }
 
     res = 1;
@@ -495,6 +495,8 @@ void clear_info_buffer(struct editor_t* ed) {
 }
 
 void draw_error_buffer(struct editor_t* ed) {
+
+    /*
     if(ed->error_buf_size == 0) {
         return;
     }
@@ -510,10 +512,10 @@ void draw_error_buffer(struct editor_t* ed) {
             ed->error_buf, ed->error_buf_size, chars_shown) + 2;
 
 
-    draw_framed_rect(ed, 
+    draw_rect(ed, 
             bx, by,
             chars_shown, lines_shown,
-            0x351010, 2.0, MAP_XYWH, DRW_ONGRID);
+            MAP_XYWH, DRW_ONGRID);
 
     font_set_color_hex(&ed->font, 0x651800);
     draw_data(ed, bx+1, by, "-- ERROR --\0", -1, DRW_ONGRID);
@@ -527,9 +529,11 @@ void draw_error_buffer(struct editor_t* ed) {
             ed->error_buf, ed->error_buf_size,
             bx + chars_shown,
             DRW_ONGRID);
+            */
 }
 
 void draw_info_buffer(struct editor_t* ed) {
+    /*
     if(ed->info_buf_size == 0) {
         return;
     }
@@ -540,10 +544,9 @@ void draw_info_buffer(struct editor_t* ed) {
     const float h = ed->font.char_h;
 
     set_color_hex(ed, 0x051212);
-    draw_framed_rect(ed,
+    draw_rect(ed,
             x, y,
             w, h,
-            0x052030, 2.0, 
             MAP_XYWH, DRW_NO_GRID);
 
 
@@ -552,6 +555,7 @@ void draw_info_buffer(struct editor_t* ed) {
     
     font_set_color_hex(&ed->font, 0x109090);
     draw_data(ed, x+ed->font.char_w+20, y, ed->info_buf, ed->info_buf_size, DRW_NO_GRID);
+    */
 }
 
 int init_editor(struct editor_t* ed, const char* fontfile, 
@@ -593,7 +597,7 @@ int init_editor(struct editor_t* ed, const char* fontfile,
     ed->error_buf_size = 0;
     ed->info_buf_size = 0;
     ed->num_vi_buffers = 0;
-    ed->show_tabs = 0;
+    ed->tabs_visible = 0;
 
     for(unsigned int i = 0; i < LAYOUT_MAX_BUFFERS; i++) {
         ed->layout[i] = NULL;
@@ -705,11 +709,6 @@ int init_editor(struct editor_t* ed, const char* fontfile,
 
     memset(ed->error_buf, 0, ERROR_BUFFER_MAX_SIZE);
     memset(ed->info_buf, 0, INFO_BUFFER_MAX_SIZE);
-    /*
-    if(!create_buffers(ed)) {
-        goto giveup;
-    }
-    */
 
     ed->cmd_str = create_string(COMMAND_LINE_MAX_SIZE);
     ed->clipbrd = create_string(CLIPBOARD_INIT_SIZE);
@@ -743,7 +742,6 @@ void cleanup_editor(struct editor_t* e) {
         }
 
         glfwTerminate();
-
         printf(" glfw terminated.\n");
     }
 
@@ -751,11 +749,9 @@ void cleanup_editor(struct editor_t* e) {
 
     if(e->vbo) {
         glDeleteBuffers(1, &e->vbo);
-        printf(" vbo deleted.\n");
     }
     if(e->vao) {
         glDeleteVertexArrays(1, &e->vao);
-        printf(" vao deleted\n");
     }
 }
 

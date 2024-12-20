@@ -1,6 +1,7 @@
 #include <GL/glew.h>
 #include <stdio.h>
 #include <math.h>
+#include <stdlib.h>
 
 #include "editor.h"
 #include "draw.h"
@@ -18,32 +19,42 @@ static void to_grid_coords(struct editor_t* ed,
 }
 
 
-void set_color(struct editor_t* ed, float r, float g, float b) {
-    glUseProgram(ed->shader);
-    glUniform3f(ed->shader_color_uniloc, r, g, b);
-}
 
-void set_color_hex(struct editor_t* ed, unsigned int hex) {
-    set_color(ed, UNHEX(hex));
+void set_color(struct editor_t* ed, unsigned int hex) {
+    glUseProgram(ed->shader);
+    glUniform3f(ed->shader_color_uniloc, UNHEX(hex));
     ed->drw_color_hex = hex;
 }
 
-void draw_rect(struct editor_t* ed, 
+
+void draw_rect(
+        struct editor_t* ed, struct buffer_t* buf,
         float x, float y,
-        float w, float h,
-        int need_mapping, int use_grid) {
+        float w, float h, int usegrid, float adj_x, float adj_y) {
 
     if((w * h) <= 0) {
         return;
     }
 
-    if(use_grid) {
+    if((usegrid & DRW_ONGRID)) {
+        x += buf->x;
+        y += buf->y;
         to_grid_coords(ed, &x, &y, &w, &h);
+
+        if((usegrid & DRW_ADJP)) {
+            x -= EDITOR_X_PADDING;
+            w += EDITOR_X_PADDING;
+            y -= EDITOR_Y_PADDING;
+            h += EDITOR_Y_PADDING;
+        }
+
+        x += adj_x;
+        y += adj_y;
+        w += abs(adj_x);
+        h += abs(adj_y);
     }
 
-    if(need_mapping) {
-        map_xywh(ed, &x, &y, &w, &h);
-    }
+    map_xywh(ed, &x, &y, &w, &h);
 
     float vertices[] = {
         x,    y-h,
@@ -68,6 +79,439 @@ void draw_rect(struct editor_t* ed,
 }
 
 
+void draw_char(
+        struct editor_t* ed,
+        struct buffer_t* buf,
+        int x, int y, unsigned char c)
+{
+    
+
+    if(!char_ok(c)) {
+        return;
+    }
+    struct glyph_t* g = &ed->font.glyphs[c - 0x20];
+
+    if(!g) {
+        return;
+    }
+
+    x += buf->x;
+    y += buf->y;
+    x = col_to_loc(ed, x);
+    y = row_to_loc(ed, y);
+
+    y += ed->font.char_h;
+
+    float xp = x + g->bearing_x * ed->font.scale;
+    float yp = y + (g->height - g->bearing_y) * ed->font.scale;
+
+    float w = (g->width * ed->font.scale);
+    float h = (g->height * ed->font.scale);
+
+    map_xywh(ed, &xp, &yp, &w, &h);
+
+
+    float vertices[] = {
+        
+        xp,   yp+h,   0.0, 0.0,
+        xp,   yp,     0.0, 1.0,
+        xp+w, yp,     1.0, 1.0,
+
+        xp,   yp+h,  0.0, 0.0,
+        xp+w, yp,    1.0, 1.0,
+        xp+w, yp+h,  1.0, 0.0
+
+    };
+
+    // TODO: optimize... yeah later
+
+    glBindVertexArray(ed->font.vao);
+
+    glUseProgram(ed->font.shader);
+    glActiveTexture(GL_TEXTURE0);
+
+    glBindTexture(GL_TEXTURE_2D, g->texture);
+    glBindBuffer(GL_ARRAY_BUFFER, ed->font.vbo);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+static size_t _draw_data_r(
+        struct editor_t* ed,
+        struct buffer_t* buf,
+        int x,
+        int y,
+        char* data,
+        long int size,
+        int use_wrapping,
+        int max_x,
+        int use_syntax)
+{
+    size_t num_newlines = 0;
+    if(!data) {
+        goto done;
+    }
+
+    // search for null character?
+    int seek_nc = 0;
+    if((seek_nc = (size < 0) ? 1 : 0)) {
+        size = STRING_MAX_SIZE;
+    }
+
+    const int xorigin = x;
+
+
+    for(long int i = 0; i < size; i++) {
+        int old_color = -1;
+        char c = data[i];
+
+        switch(c) {
+            case 0:
+                goto done;
+            
+            case 0x9:
+                x += FONT_TAB_WIDTH;
+                continue;
+
+            case 0xA:
+                if(use_wrapping) {
+                    x = xorigin;
+                    y++;
+                    num_newlines++;
+                }
+                continue;
+
+            default:
+                if(!char_ok(c)) {
+                    //printf("unknown character: 0x%x/'%c'\n", c, c);
+                    old_color = ed->font.color_hex;
+                    font_set_color_hex(&ed->font, 0xFF3020);
+                    c = '?';
+                }
+                break;
+        }
+
+        draw_char(ed, buf, x, y, c);
+
+        x++;
+
+        if(use_wrapping && (x >= max_x)) {
+            x = xorigin;
+            y++;
+            num_newlines++;
+        }
+
+        if(old_color > 0) {
+            font_set_color_hex(&ed->font, old_color);
+        }
+    }
+
+done:
+    return num_newlines;
+}
+
+void draw_data(struct editor_t* ed, 
+        struct buffer_t* buf, 
+        int x, int y, char* data, long int size) {
+    _draw_data_r(ed, buf, x, y, data, size, 0, 0, 0);
+}
+
+static void draw_buffer_data(struct editor_t* ed, struct buffer_t* buf) {
+ 
+    if(!buffer_ready(buf)) {
+        return;
+    }
+
+    set_color(ed, ed->colors[BACKGROUND_COLOR]);
+    draw_rect(ed, buf, 0, 0,
+            buf->max_col+1,
+            buf->max_row+1, 
+            DRW_ONGRID | DRW_ADJP, DRW_NOADJAFTER);
+
+
+    struct string_t* line = NULL;
+    const int xdrw_off = buf->content_xoff;
+    char linenum_buf[LINENUM_BUF_SIZE];
+
+    for(size_t i = buf->scroll; i < buf->num_used_lines; i++) {
+        if(i > (buf->max_row) + buf->scroll) {
+            break;
+        }
+
+
+        line = buf->lines[i];
+        if(!string_ready(line)) {
+            fprintf(stderr, "corrupted data?? buffer id:%i\n", buf->id);
+            return;
+        }
+
+
+        int linenum_len = snprintf(linenum_buf, LINENUM_BUF_SIZE, "%li", i);
+
+        int y = i - buf->scroll;
+        int ln_x = (xdrw_off - linenum_len - 2);
+
+        // buffer data
+
+        font_set_color_hex(&ed->font, ed->colors[FOREGROUND_COLOR]);
+        draw_data(ed, buf, xdrw_off, y, line->data, line->data_size);
+
+        
+        // buffer line numbers
+
+        font_set_color_hex(&ed->font,
+                (i == buf->cursor_y) 
+                ? ed->colors[LINENUM_COLOR_A] : ed->colors[LINENUM_COLOR_B]);
+
+        draw_data(ed, buf, ln_x, y, linenum_buf, LINENUM_BUF_SIZE);
+    }
+}
+
+
+static void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
+    if(!buffer_ready(buf)) {
+        return;
+    }
+
+    const int cw = CELLW;
+    const int ch = CELLH;
+
+    long int x = buf->cursor_x + buf->content_xoff;
+    long int y = buf->cursor_y - buf->scroll;
+
+    set_color(ed, buf->cursor_color);
+    draw_rect(ed, buf, x, y, 1, 1, 
+            DRW_ONGRID,
+            -1.0, -1.32 /* adjustment */
+            );
+
+
+    if(buf->cursor_x < buf->current->data_size) {
+        font_set_color_hex(&ed->font, buf->cursor_charcolor);
+        draw_char(ed, buf, x, y, 
+                string_get_char(buf->current, buf->cursor_x));
+    } 
+
+
+}
+
+static void draw_buffer_nameinfo(struct editor_t* ed, struct buffer_t* buf) {
+
+    // bottom bar
+    set_color(ed, ed->colors[BAR_COLOR]);
+    draw_rect(ed, buf,
+            0, 
+            buf->max_row,
+            buf->max_col,
+            1,
+            DRW_ONGRID | DRW_ADJP, DRW_NOADJAFTER);
+   
+    // filename
+    font_set_color_hex(&ed->font, ed->colors[FILENAME_COLOR]);
+    draw_data(ed, buf,
+            4,
+            buf->max_row,
+            buf->file.name,
+            buf->file.name_size);
+
+
+    // mode
+    font_set_color_hex(&ed->font, BUFFER_MODE_INDICCOLORS[buf->mode]);
+    draw_data(ed, buf,
+            0,
+            buf->max_row,
+            buf->mode_indicstr, BUFFER_MODE_INDICSIZE);
+
+
+    if(buf->file.readonly) {
+        font_set_color_hex(&ed->font, ed->colors[READONLY_COLOR]);
+        draw_data(ed, buf,
+                buf->file.name_size + 5,
+                buf->max_row,
+                "(Read Only)\0", -1);
+    }
+}
+
+
+static int draw_selected_callback(
+        struct buffer_t* buf,
+        struct string_t* line,
+        size_t line_y,
+        int flag,
+        void* userptr
+        )
+{
+    int res = 0;
+    struct editor_t* ed = (struct editor_t*) userptr;
+    if(!ed) {
+        goto done;
+    }
+
+
+    const int cw = CELLW;
+    const int ch = CELLH;
+
+    set_color(ed, ed->colors[SELECT_REGION_COLOR]);
+
+
+    long int y = line_y - buf->scroll;
+    long int x = buf->content_xoff;
+    long int width = line->data_size;
+
+
+    if((flag & PROCSELECTED_BEGIN)) {
+        x += buf->select.x0;
+        width -= buf->select.x0;
+    }
+
+    if((flag & PROCSELECTED_END)) {
+        width = buf->content_xoff + buf->select.x1 - x;
+    }
+
+    if(y >= (buf->y + buf->height - ch)) {
+        goto done;
+    }
+
+    width = liclamp(width, 1, line->data_size);
+
+    draw_rect(ed, buf,
+            x, y,
+            width, 1,
+            DRW_ONGRID, DRW_NOADJAFTER);
+
+    // draw text on top of just drawn rectangle.
+    // the reason why not just change the order, 
+    // user can change the text color that is selected
+    if(line->data_size > 0) {
+        font_set_color_hex(&ed->font, ed->colors[SELECT_CURSORCHAR_COLOR]);
+        size_t offs = 0;
+        if((flag & PROCSELECTED_BEGIN)) {
+            offs = buf->select.x0;
+        }
+        draw_data(ed, buf, x, y, line->data + offs, width);
+    }
+
+    res = 1;
+done:
+    return res;
+}
+
+
+static int draw_blockslct_callback(
+        struct buffer_t* buf,
+        struct string_t* line,
+        size_t line_y,
+        int flag,
+        void* userptr
+        )
+{
+    int res = 0;
+    struct editor_t* ed = (struct editor_t*) userptr;
+    if(!ed) {
+        goto done;
+    }
+    
+    long int y = buf->select.y0;
+    long int x = buf->content_xoff;
+    x += buf->select.x0;
+
+    set_color(ed, 0x22FF22);
+
+    draw_rect(ed, buf, 
+            x, y,
+            1, 1,
+            DRW_ONGRID, DRW_NOADJAFTER);
+
+
+    res = 1;
+done:
+    return res;
+}
+
+
+
+#define TABNAME_MAX_CHARS 16
+
+static void draw_tabs(struct editor_t* ed) {
+
+    if(!ed->tabs_visible) {
+        return;
+    }
+
+    const int cw = CELLW;
+    const int ch = CELLH;
+
+    set_color(ed, 0x24211d);
+
+    int tabname_x = 2;
+    int tabname_y = ed->max_row-2;
+    draw_rect(ed, &ed->buffers[ed->current_bufid],
+            0, tabname_y,
+            ed->window_width, 1,
+            DRW_ONGRID | DRW_ADJP, DRW_NOADJAFTER);
+
+
+    for(size_t i = 0; i < ed->num_buffers; i++) {
+        struct buffer_t* buf = &ed->buffers[i];
+
+        if(buf->file.name_size > 0) {
+
+            int currentbuf = (i == ed->current_bufid);
+ 
+            if(currentbuf) {
+                font_set_color_hex(&ed->font, 0x68d44e);
+                draw_char(ed, buf, tabname_x, tabname_y, '*');
+                tabname_x += 1;
+            }
+
+            int toolong_name = (buf->file.name_size > TABNAME_MAX_CHARS);
+
+            size_t tabname_size = toolong_name ? TABNAME_MAX_CHARS : buf->file.name_size;
+            size_t offset = toolong_name ? buf->file.name_size-TABNAME_MAX_CHARS : 0;
+
+
+            font_set_color_hex(&ed->font, currentbuf ? 0x649459 : 0x4f7047);
+            draw_data(ed, buf, tabname_x, tabname_y,
+                    buf->file.name + offset, 
+                    tabname_size);
+            
+            tabname_x += tabname_size +2;
+
+        }
+        else {
+            
+        }
+    }
+}
+ 
+
+void draw_everything(struct editor_t* ed) {
+
+    struct buffer_t* buf = &ed->buffers[ed->current_bufid];
+    
+    draw_buffer_data(ed, buf);
+    draw_buffer_nameinfo(ed, buf);
+    draw_cursor(ed, buf);
+
+    if(buf->mode == BUFMODE_SELECT) {
+        buffer_proc_selected_reg(buf, ed, draw_selected_callback);
+    }
+    else if(buf->mode == BUFMODE_BLOCKSLCT) {
+        buffer_proc_selected_reg(buf, ed, draw_blockslct_callback);
+    }
+ 
+    draw_tabs(ed);
+
+}
+
+
+
+
+/*
 void draw_framed_rect(struct editor_t* ed, 
         float x, float y, float w, float h,
         unsigned int frame_color, 
@@ -130,66 +574,11 @@ void draw_framed_rect(struct editor_t* ed,
     
     glUniform3f(ed->shader_color_uniloc, UNHEX(old_color));
 }
+*/
 
 
-void draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid) {
-    if(!char_ok(c)) {
-        return;
-    }
-    struct glyph_t* g = &ed->font.glyphs[c - 0x20];
 
-    if(!g) {
-        return;
-    }
-
-    if(use_grid) {
-        x = col_to_loc(ed, x);
-        y = row_to_loc(ed, y);
-    }
-
-    y += ed->font.char_h;
-
-    float xp = x + g->bearing_x * ed->font.scale;
-    float yp = y + (g->height - g->bearing_y) * ed->font.scale;
-
-    float w = (g->width * ed->font.scale);
-    float h = (g->height * ed->font.scale);
-
-    map_xywh(ed, &xp, &yp, &w, &h);
-
-
-    float vertices[] = {
-        
-        xp,   yp+h,   0.0, 0.0,
-        xp,   yp,     0.0, 1.0,
-        xp+w, yp,     1.0, 1.0,
-
-        xp,   yp+h,  0.0, 0.0,
-        xp+w, yp,    1.0, 1.0,
-        xp+w, yp+h,  1.0, 0.0
-
-    };
-
-    // TODO: optimize... yeah later
-
-    glBindVertexArray(ed->font.vao);
-
-    glUseProgram(ed->font.shader);
-    glActiveTexture(GL_TEXTURE0);
-
-    glBindTexture(GL_TEXTURE_2D, g->texture);
-    glBindBuffer(GL_ARRAY_BUFFER, ed->font.vbo);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-}
-
-#define CHRATTR_NORMAL 0
-#define CHRATTR_COMMENT 1
-
+/*
 static size_t _draw_data_r(
         struct editor_t* ed,
         int x,
@@ -216,8 +605,6 @@ static size_t _draw_data_r(
     const int yinc = use_grid ? 1 : CELLH;
     const int xorigin = x;
 
-    unsigned int attr = 0;
-    char prev_c = 0;
 
     for(long int i = 0; i < size; i++) {
         int old_color = -1;
@@ -262,8 +649,6 @@ static size_t _draw_data_r(
         if(old_color > 0) {
             font_set_color_hex(&ed->font, old_color);
         }
-
-        prev_c = c;
     }
 
 done:
@@ -286,8 +671,10 @@ size_t draw_data_w(struct editor_t* ed,
             int use_grid) {
     return _draw_data_r(ed, x, y, data, size, use_grid, 1, max_x, 0);
 }
+*/
 
 
+    /*
 static void draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf) {
     if(!buffer_ready(buf)) {
         return;
@@ -341,7 +728,9 @@ static void draw_buffer_frame(struct editor_t* ed, struct buffer_t* buf) {
                 DRW_NO_GRID);
     }
 }
+    */
 
+    /*
 
 static void draw_buffer(
         struct editor_t* ed,
@@ -403,7 +792,9 @@ static void draw_buffer(
     }
 
 }
+    */
 
+    /*
 static void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
     if(!buffer_ready(buf)) {
         return;
@@ -414,20 +805,6 @@ static void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
 
     long int y = buf->cursor_y + buf->y - buf->scroll;
     long int x = buf->cursor_x + buf->content_xoff;
-
-    /* ----- TODO
-    if(buf->current->num_wraps > 0) {
-       
-        // figure out how many wraps there are
-        // before index 'x'.
-        // so the cursor draw y can be offset correctly.
-        const int m = buf->max_col - buf->content_xoff;
-        long int k = round(x / m);
-        x = x % m;
-
-        y += k;
-    }
-    */
 
     x *= cw;
     y *= ch;
@@ -491,8 +868,10 @@ static void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
                 buf->current->data[buf->cursor_x], DRW_NO_GRID);
     }
 }
+    */
 
 
+    /*
 static int draw_selected_callback(
         struct buffer_t* buf,
         struct string_t* line,
@@ -552,7 +931,9 @@ static int draw_selected_callback(
 done:
     return res;
 }
+    */
 
+    /*
 static int draw_B_selected_callback(
         struct buffer_t* buf,
         struct string_t* line,
@@ -602,12 +983,13 @@ static int draw_B_selected_callback(
 error:
     return res;
 }
+    */
 
 
+/*
 #define TABNAME_MAX_CHARS 16
 
 static void draw_tabs(struct editor_t* ed) {
-
 
     if(!ed->show_tabs) {
         return;
@@ -661,16 +1043,12 @@ static void draw_tabs(struct editor_t* ed) {
         else {
             
         }
-
-
-
     }
-
-
-
 }
+    */
 
 
+    /*
 void draw_buffers(struct editor_t* ed) {
     
     char linenum_buf[LINENUM_BUF_SIZE];
@@ -699,17 +1077,17 @@ void draw_buffers(struct editor_t* ed) {
 
 }
 
+    */
+    /*
 void draw_everything(struct editor_t* ed) {
 
     draw_buffers(ed);
 
     if(ed->mode == MODE_COMMAND_LINE) {
         set_color_hex(ed, 0x231100);
-        draw_framed_rect(ed, 
+        draw_rect(ed, 
                 5, 3,
                 ed->window_width-10, ed->font.char_h+8,
-                0x554510,
-                1.0,
                 MAP_XYWH, DRW_NO_GRID);
         
         font_set_color_hex(&ed->font, 0x773310);
@@ -732,10 +1110,8 @@ void draw_everything(struct editor_t* ed) {
     }
 
 
-    draw_error_buffer(ed);
-    draw_info_buffer(ed);
-
 }
 
+    */
 
 

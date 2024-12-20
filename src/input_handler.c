@@ -1,15 +1,109 @@
 #include <GLFW/glfw3.h>
 #include <stdio.h>
-#include <math.h>
+//#include <math.h>
 
 #include "editor.h"
-#include "command_line.h"
-#include "file.h"
-#include "utils.h"
-#include "selectreg.h"
-#include "config.h"
+//#include "command_line.h"
+//#include "file.h"
+//#include "utils.h"
+//#include "selectreg.h"
+//#include "config.h"
 
 
+
+#include "bufmodes/insert.h"
+
+
+/*   
+--->
+     Everything from here redirects commands
+     to src/bufmodes/something  OR  src/editormodes/something
+    
+     from there the functions for the corresponding mode are done.
+
+*/
+
+
+
+void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
+
+}
+
+
+
+void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int mods) {
+    
+    if(action != GLFW_PRESS) {
+        return;
+    }
+
+    struct editor_t* ed = NULL;
+    ed = glfwGetWindowUserPointer(win);
+
+    if(!ed) {
+        fprintf(stderr, "[ERROR] %s | pointer is missing.\n",
+                __func__);
+        return;
+    }
+
+    struct buffer_t* buf = &ed->buffers[ed->current_bufid];
+    if(!buffer_ready(buf)) {
+        // error message is printed from the function above.
+        return;
+    }
+
+
+    switch(buf->mode) {
+        case BUFMODE_INSERT:
+            bufmode_insert_keypress(ed, buf, key, mods);
+            break;
+    }
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    /*
 static void handle_enter_key_on_buffer(struct editor_t* ed, struct buffer_t* buf) {
     if(buf->mode != BUFMODE_INSERT
     && buf->mode != BUFMODE_REPLACE) {
@@ -150,7 +244,7 @@ static void _key_mod_input_ALT(struct editor_t* ed, struct buffer_t* buf, int ke
     switch(key) {
 
         case GLFW_KEY_TAB:
-            ed->show_tabs = !ed->show_tabs;
+            ed->tabs_visible = !ed->tabs_visible;
             break;
 
         case GLFW_KEY_LEFT:
@@ -347,7 +441,11 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
     if(buf->mode == BUFMODE_NONE) {
         return;
     }
-    
+
+
+    if(buf->mode == BUFMODE_BLOCKSLCT) {
+    }
+
 
     if(mods) {
         switch(mods) {
@@ -465,7 +563,7 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
 }
 
 
-static void select_mode_keypress(struct editor_t* ed, struct buffer_t* buf, unsigned int codepoint) {
+static void select_mode_keypress(struct editor_t* ed, struct buffer_t* buf,  unsigned int codepoint) {
 
     switch(codepoint) {
 
@@ -483,6 +581,11 @@ static void select_mode_keypress(struct editor_t* ed, struct buffer_t* buf, unsi
             break;
 
         case 'q':
+            buffer_change_mode(ed, buf, buf->prev_mode);
+            break;
+
+
+        case 'r':
             {
                 buffer_remove_selected(buf);
 
@@ -499,17 +602,6 @@ static void select_mode_keypress(struct editor_t* ed, struct buffer_t* buf, unsi
     }
 }
 
-static void b_select_mode_keypress(struct editor_t* ed, struct buffer_t* buf, unsigned int codepoint) {
-   switch(codepoint) { 
-        case 'a':
-            buffer_proc_selected_reg(buf, ed,  dec_selected_reg_indent_callback);
-            break;
-
-        case 'd':
-            buffer_proc_selected_reg(buf, ed,  inc_selected_reg_indent_callback);
-            break;
-   }
-}
 
 void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
     struct editor_t* ed = glfwGetWindowUserPointer(win);
@@ -532,12 +624,6 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
                     case BUFMODE_SELECT:
                         {
                             select_mode_keypress(ed, buf, codepoint);
-                        }
-                        break;
-
-                    case BUFMODE_B_SELECT:
-                        {
-                            b_select_mode_keypress(ed, buf, codepoint);
                         }
                         break;
 
@@ -564,7 +650,7 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
                             switch(codepoint) {
 
                                 case 'd':
-                                    buffer_change_mode(ed, buf, BUFMODE_B_SELECT);
+                                    buffer_change_mode(ed, buf, BUFMODE_BLOCKSLCT);
                                     break;
 
                                 case 's':
@@ -599,6 +685,7 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
             break;
     }
 }
+*/
 
 void scroll_input_handler(GLFWwindow* win, double xoff, double yoff) {
     struct editor_t* ed = glfwGetWindowUserPointer(win);
@@ -610,7 +697,6 @@ void scroll_input_handler(GLFWwindow* win, double xoff, double yoff) {
     buffer_scroll(buf, iyoff);
     move_cursor(buf, 0, iyoff);
 }
-
 
 
 

@@ -90,37 +90,3 @@ done:
     return res;
 }
 
-int inc_selected_reg_indent_callback
-    (struct buffer_t* buf, struct string_t* line, size_t y, int flag, void* userptr)
-{
-    int res = 1;
-  
-    for(size_t i = 0; i < FONT_TAB_WIDTH; i++) {
-        string_add_char(line, 0x20, 0);
-    }
-
-
-    return res;
-}
-
-int dec_selected_reg_indent_callback
-    (struct buffer_t* buf, struct string_t* line, size_t y, int flag, void* userptr)
-{
-    int res = 1;
-
-    size_t count = string_count_ws_to(line, line->data_size);
-
-    if(count < FONT_TAB_WIDTH) {
-        res = 0;
-        goto done;
-    }
-
-
-    string_cut_data(line, 0, FONT_TAB_WIDTH);
-
-done:
-    return res;
-}
-
-
-

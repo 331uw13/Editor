@@ -19,8 +19,8 @@
 #define MAX_BUFFERS 16
 #define ERROR_BUFFER_MAX_SIZE 256
 #define INFO_BUFFER_MAX_SIZE 96
-#define EDITOR_X_PADDING 8
-#define EDITOR_Y_PADDING 8
+#define EDITOR_X_PADDING 4
+#define EDITOR_Y_PADDING 1
 #define EDITOR_TEXT_Y_SPACING 1.3 // how much space between lines?
                                   // ^ NOTE: do not set this to 0.
 #define EDITOR_TEXT_X_SPACING 1.0 // how much space between characters?
@@ -61,7 +61,7 @@ struct editor_t {
     int max_column;
     int max_row;
 
-    int show_tabs;
+    int tabs_visible;
 
     unsigned int vbo; // vertex buffer object
     unsigned int vao; // vertex array object
@@ -82,17 +82,14 @@ struct editor_t {
     struct string_t* cmd_str;    // for command line.
     long int         cmd_cursor; //
 
-
     struct string_t* clipbrd;
-
-
     unsigned int colors[NUM_COLORS];
 
     int glfwinitsuccess;
     int ready;
 };
 
-void do_safety_check(struct editor_t* ed); // TODO make this better <---
+int is_safe_to_continue(struct editor_t* ed);
 
 float  col_to_loc(struct editor_t* ed, long int col);
 float  row_to_loc(struct editor_t* ed, long int row);
@@ -128,6 +125,8 @@ void clear_info_buffer(struct editor_t* ed);
 
 void draw_error_buffer(struct editor_t* ed);
 void draw_info_buffer(struct editor_t* ed);
+
+void showtabs(struct editor_t* ed, int visible);
 
 //int setup_buffers(struct editor_t* ed);
 int init_editor(

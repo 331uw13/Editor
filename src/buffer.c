@@ -56,6 +56,8 @@ int create_buffer(struct editor_t* ed, struct buffer_t* buf, int id) {
     buf->select = (struct select_t) { 0, 0, 0, 0, 0, 0 };
     buf->file = (struct buffer_file_t) { {0}, 0, 0, 0};
     
+    buf->prev_mode = BUFMODE_INSERT;
+    buf->mode = BUFMODE_INSERT;
     buffer_change_mode(ed, buf, BUFMODE_INSERT);
 
     buf->lines = malloc(mem_size);
@@ -125,6 +127,9 @@ void buffer_change_mode(struct editor_t* ed, struct buffer_t* buf, unsigned int 
         return;
     }
 
+    if(buf->mode != BUFMODE_NONE) {
+        buf->prev_mode = buf->mode;
+    }
     buf->mode = bufmode;
     memmove(buf->mode_indicstr,
             BUFFER_MODE_INDICATORS[bufmode],
@@ -135,33 +140,28 @@ void buffer_change_mode(struct editor_t* ed, struct buffer_t* buf, unsigned int 
 
         case BUFMODE_SELECT:
             buffer_init_select(buf);
-            buf->cursor_color[0] = ed->colors[SELECT_CURSOR_COLOR_A];
-            buf->cursor_color[1] = ed->colors[SELECT_CURSOR_COLOR_B];
+            buf->cursor_color = ed->colors[SELECT_CURSOR_COLOR];
             buf->cursor_charcolor = ed->colors[SELECT_CURSORCHAR_COLOR];
+            break;
+     
+        case BUFMODE_BLOCKSLCT:
+            buffer_init_select(buf);
+            buf->cursor_color = ed->colors[BLOCKSLCT_CURSOR_COLOR];
+            buf->cursor_charcolor = ed->colors[BLOCKSLCT_CURSORCHAR_COLOR];
             break;
         
-        case BUFMODE_B_SELECT:
-            buffer_init_select(buf);
-            buf->cursor_color[0] = ed->colors[B_SELECT_CURSOR_COLOR_A];
-            buf->cursor_color[1] = ed->colors[B_SELECT_CURSOR_COLOR_B];
-            buf->cursor_charcolor = ed->colors[SELECT_CURSORCHAR_COLOR];
-            break;
-
         case BUFMODE_INSERT:
-            buf->cursor_color[0] = ed->colors[INSERT_CURSOR_COLOR_A];
-            buf->cursor_color[1] = ed->colors[INSERT_CURSOR_COLOR_B];
+            buf->cursor_color = ed->colors[INSERT_CURSOR_COLOR];
             buf->cursor_charcolor = ed->colors[INSERT_CURSORCHAR_COLOR];
             break;
         
         case BUFMODE_REPLACE:
-            buf->cursor_color[0] = ed->colors[REPLACE_CURSOR_COLOR_A];
-            buf->cursor_color[1] = ed->colors[REPLACE_CURSOR_COLOR_B];
+            buf->cursor_color = ed->colors[REPLACE_CURSOR_COLOR];
             buf->cursor_charcolor = ed->colors[REPLACE_CURSORCHAR_COLOR];
             break;
         
         case BUFMODE_NONE:
-            buf->cursor_color[0] = ed->colors[NONEMODE_CURSOR_COLOR_A];
-            buf->cursor_color[1] = ed->colors[NONEMODE_CURSOR_COLOR_B];
+            buf->cursor_color = ed->colors[NONEMODE_CURSOR_COLOR];
             buf->cursor_charcolor = ed->colors[NONEMODE_CURSORCHAR_COLOR];
             break;
 
@@ -560,7 +560,7 @@ void move_cursor_to(struct buffer_t* buf, long int col, long int row) {
        
     }
 
-    if((buf->mode == BUFMODE_SELECT) || (buf->mode == BUFMODE_B_SELECT)) {
+    if(buf->mode == BUFMODE_SELECT) {
         buffer_update_selected(buf);
     }
 }

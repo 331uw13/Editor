@@ -20,12 +20,12 @@ struct buffer_file_t {
     int      readonly;
 };
 
-#define BUFMODE_INSERT   0
-#define BUFMODE_SELECT   1
-#define BUFMODE_REPLACE  2
-#define BUFMODE_B_SELECT 3
-#define BUFMODE_NONE     4 // this mode may be set so user can change the mode to different one.
-#define BUFMODE_INVALID  5
+#define BUFMODE_INSERT    0
+#define BUFMODE_SELECT    1
+#define BUFMODE_REPLACE   2
+#define BUFMODE_BLOCKSLCT 3
+#define BUFMODE_NONE      4 // this mode may be set so user can change the mode to different one.
+#define BUFMODE_INVALID   5
 
 #define BUFFER_MODE_INDICSIZE 3
 static const unsigned char BUFFER_MODE_INDICATORS[][BUFFER_MODE_INDICSIZE] = {
@@ -40,7 +40,7 @@ static const unsigned int BUFFER_MODE_INDICCOLORS[] = {
     0x1aba37, /* insert */ 
     0xb848a5, /* select */
     0xe65b20, /* replace */
-    0xc44569, /* block select */
+    0xe65b20, /* block select */
     0x30c2c9  /* none    */
 };
 
@@ -61,7 +61,9 @@ struct buffer_t {
 
     int max_row; // TODO rename.
     int max_col; //  (max_screen_row/col)
-    
+
+    // X and Y are not currently used
+    // but are here for future improvements.
     int x;
     int y;
     int width;
@@ -75,10 +77,11 @@ struct buffer_t {
     size_t prev_scroll;
     
     int mode;
+    int prev_mode; // previous mode.
     char mode_indicstr[BUFFER_MODE_INDICSIZE];
 
     unsigned int cursor_charcolor; // the character color thats behind cursor.
-    unsigned int cursor_color[2];
+    unsigned int cursor_color;
 
     int id; // NOTE: buffer can be accessed from 'editor->buffers[id]'
     int ready;

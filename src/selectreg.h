@@ -28,10 +28,5 @@ int copy_selected_reg_callback
 int remove_selected_reg_callback
     (struct buffer_t* buf, struct string_t* line, size_t y, int flag, void* userptr);
 
-int inc_selected_reg_indent_callback
-    (struct buffer_t* buf, struct string_t* line, size_t y, int flag, void* userptr);
-
-int dec_selected_reg_indent_callback
-    (struct buffer_t* buf, struct string_t* line, size_t y, int flag, void* userptr);
 
 #endif
