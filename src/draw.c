@@ -277,9 +277,6 @@ static void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
         return;
     }
 
-    const int cw = CELLW;
-    const int ch = CELLH;
-
     long int x = buf->cursor_x + buf->content_xoff;
     long int y = buf->cursor_y - buf->scroll;
 
@@ -351,10 +348,6 @@ static int draw_selected_callback(
         goto done;
     }
 
-
-    const int cw = CELLW;
-    const int ch = CELLH;
-
     set_color(ed, ed->colors[SELECT_REGION_COLOR]);
 
 
@@ -372,7 +365,7 @@ static int draw_selected_callback(
         width = buf->content_xoff + buf->select.x1 - x;
     }
 
-    if(y >= (buf->y + buf->height - ch)) {
+    if(y >= (buf->y + buf->height - CELLH)) {
         goto done;
     }
 
@@ -441,9 +434,6 @@ static void draw_tabs(struct editor_t* ed) {
     if(!ed->tabs_visible) {
         return;
     }
-
-    const int cw = CELLW;
-    const int ch = CELLH;
 
     set_color(ed, 0x24211d);
 

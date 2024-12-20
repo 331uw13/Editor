@@ -2,9 +2,7 @@
 
 
 
-ls -lh ./src/
-
-files=$(find ./src/*.c)
+files=$(find ./src/ -type f -name *.c)
 
 name="editor"
 compiler_flag="-ggdb"
@@ -13,6 +11,7 @@ if [[ $1 == "o" || $2 == "o" ]]; then
     compiler_flag="-O3"
 fi
 
+echo $files | sed 's/ /\n/g'
 
 if gcc $files $compiler_flag \
     -Wall \

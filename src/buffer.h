@@ -150,6 +150,7 @@ size_t  buffer_find_last_line(struct buffer_t* buf);
 int     buffer_add_newline(struct buffer_t* buf, size_t col, size_t row, int option);
 int     buffer_remove_line(struct buffer_t* buf, size_t row);
 int     buffer_remove_lines(struct buffer_t* buf, size_t row, size_t n);
+int     buffer_backspace(struct buffer_t* buf);
 
 // returns the string pointer from buf->lines[index] but
 // if 'index' is out of bounds returns NULL.

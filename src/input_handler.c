@@ -26,17 +26,6 @@
 
 
 void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
-
-}
-
-
-
-void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int mods) {
-    
-    if(action != GLFW_PRESS) {
-        return;
-    }
-
     struct editor_t* ed = NULL;
     ed = glfwGetWindowUserPointer(win);
 
@@ -52,6 +41,61 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
         return;
     }
 
+    switch(buf->mode) {
+        case BUFMODE_INSERT:
+            bufmode_insert_charinput(ed, buf, codepoint);
+            break;
+    }
+
+}
+
+
+
+void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int mods) {
+    
+    if(action == GLFW_RELEASE) {
+        return;
+    }
+
+    struct editor_t* ed = NULL;
+    ed = glfwGetWindowUserPointer(win);
+
+    if(!ed) {
+        fprintf(stderr, "[ERROR] %s | pointer is missing.\n",
+                __func__);
+        return;
+    }
+
+    if(mods == GLFW_MOD_ALT) {
+        switch(key) {
+
+            case GLFW_KEY_TAB:
+                ed->tabs_visible = !ed->tabs_visible;
+                break;
+
+            case GLFW_KEY_LEFT:
+                if(ed->current_bufid > 0) {
+                    ed->current_bufid--;
+                }
+                break;
+
+
+            case GLFW_KEY_RIGHT:
+                if(ed->current_bufid+1 < ed->num_buffers) {
+                    ed->current_bufid++;
+                }
+                break;
+
+        }
+
+        return;
+    }
+
+    struct buffer_t* buf = &ed->buffers[ed->current_bufid];
+    if(!buffer_ready(buf)) {
+        // error message is printed from the function above.
+        return;
+    }
 
     switch(buf->mode) {
         case BUFMODE_INSERT:

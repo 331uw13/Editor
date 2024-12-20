@@ -86,7 +86,6 @@ int remove_selected_reg_callback
     }
     
 
-done:
     return res;
 }
 

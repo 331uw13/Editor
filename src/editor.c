@@ -104,7 +104,7 @@ long int loc_to_row(struct editor_t* ed, float row) {
 
 int confirm_user_choice(struct editor_t* ed, char* question) {
     int res = 0;
-    int wait_for_answer = 1;
+    //int wait_for_answer = 1;
 
     if(!question) {
         goto error;
@@ -128,13 +128,13 @@ int confirm_user_choice(struct editor_t* ed, char* question) {
         goto error;
     }
 
+
+        /*
     const float x = ed->window_width / 2 - (w / 2);
     const float y = ed->window_height / 2 - (h / 2);
-
     int old_mode = ed->mode;
     ed->mode = MODE_CONFIRM_CHOICE;
 
-        /*
     while(wait_for_answer && !glfwWindowShouldClose(ed->win)) {
         glClear(GL_COLOR_BUFFER_BIT);
         draw_everything(ed);

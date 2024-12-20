@@ -12,6 +12,11 @@ void bufmode_insert_keypress(
         int mods
         );
 
+void bufmode_insert_charinput(
+        struct editor_t* ed,
+        struct buffer_t* buf,
+        unsigned char codepoint
+        );
 
 
 #endif

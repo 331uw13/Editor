@@ -479,7 +479,7 @@ void buffer_paste_clipboard(struct editor_t* ed, struct buffer_t* buf) {
         struct string_t* target = buf->current;
         long int x = buf->cursor_x;
         long int y = buf->cursor_y;
-        const long int x_origin = x;
+        //const long int x_origin = x;
 
         for(size_t i = 0; i < ed->clipbrd->data_size; i++) {
             char c = ed->clipbrd->data[i];
@@ -759,6 +759,44 @@ int buffer_remove_lines(struct buffer_t* buf, size_t row, size_t n) {
     return ok;
 }
 
+int buffer_backspace(struct buffer_t* buf) {
+    int ok = 0;
+
+    if(buf->cursor_x > 0) {
+
+        size_t idx = (buf->cursor_x <= FONT_TAB_WIDTH) ? 0 : (buf->cursor_x - FONT_TAB_WIDTH);
+        size_t num_spaces = string_num_chars(buf->current, idx, buf->cursor_x, 0x20);
+
+        buf->cursor_px = 0;
+
+        if(num_spaces == FONT_TAB_WIDTH && is_on_end_of_tab(buf->cursor_x)) {
+            string_cut_data(buf->current, idx, num_spaces);
+            move_cursor(buf, -FONT_TAB_WIDTH, 0);
+        }
+        else {
+            string_rem_char(buf->current, buf->cursor_x);
+            move_cursor(buf, -1, 0);
+        }
+    }
+    else if(buf->cursor_y > 0) {
+        struct string_t* ln = buffer_get_string(buf, buf->cursor_y-1);
+        if(!ln) {
+            goto error;
+        }
+        
+        size_t lnsize = ln->data_size;
+
+        buffer_shift_data(buf, buf->cursor_y+1, BUFFER_SHIFT_UP);
+        buffer_dec_size(buf, 1);
+        move_cursor_to(buf, lnsize, buf->cursor_y - 1);
+    }
+
+    buffer_update_content_xoff(buf);
+
+    ok = 1;
+error:
+    return ok;
+}
 
 struct string_t* buffer_get_string(struct buffer_t* buf, size_t row) {
     struct string_t* str = NULL;

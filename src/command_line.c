@@ -49,7 +49,7 @@ void execute_cmd(struct editor_t* ed, struct string_t* str) {
         }
     }
 
-    struct buffer_t* buf = &ed->buffers[ed->current_bufid];
+    //struct buffer_t* buf = &ed->buffers[ed->current_bufid];
 
     if(argc > 0) {
 
