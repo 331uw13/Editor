@@ -68,7 +68,6 @@ int     string_add_data(struct string_t* str, size_t index, char* data, size_t s
 size_t string_find_char(struct string_t* str, size_t start_index, char c, int direction);
 
 // useful in some cases when wanting to render text with line wrapping
-// max_line_size is like the max column.
-int count_data_linewraps(char* data, size_t size, int max_line_size);
+size_t count_data_linewraps(char* data, size_t size, int max_line_size);
 
 #endif

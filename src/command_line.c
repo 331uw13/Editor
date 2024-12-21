@@ -1,6 +1,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <GLFW/glfw3.h>
 
 #include "editor.h"
 #include "file.h"
@@ -8,24 +10,21 @@
 #include "utils.h"
 
 
-#define CMD_OPEN 6385555319     // "open <filename>"
-#define CMD_WRITE 210732889424  // "write"
-#define CMD_QDOT 5863684        // "q." close the editor without asking anything.
-#define CMD_OPEN_NEW 7572764151204206 // "open-new" open file to new buffer
+#define CMD_LN 5863583
+#define CMD_QUIT 6385632776
+#define CMD_OPENF 210723325629
 
-#define CMD_TEST1 210728875318  // "test1"
-#define CMD_TEST2 210728875319  // "test2"
 
 void execute_cmd(struct editor_t* ed, struct string_t* str) {
     if(!str) { return; }
 
-    if(str->data_size > COMMAND_LINE_MAX_SIZE) {
-        str->data_size = COMMAND_LINE_MAX_SIZE;
+    if(str->data_size > CMDSTR_MAX_SIZE) {
+        str->data_size = CMDSTR_MAX_SIZE;
     }
 
     clear_error_buffer(ed);
 
-    char args[COMMAND_LINE_MAX_SIZE][COMMAND_LINE_MAX_SIZE];
+    char args[CMDSTR_MAX_SIZE][CMDSTR_MAX_SIZE];
     size_t argc = 0;
     size_t j = 0;
 
@@ -49,65 +48,45 @@ void execute_cmd(struct editor_t* ed, struct string_t* str) {
         }
     }
 
-    //struct buffer_t* buf = &ed->buffers[ed->current_bufid];
+    struct buffer_t* buf = &ed->buffers[ed->current_bufid];
 
     if(argc > 0) {
-
         switch(djb2_hash(args[0])) {
-           
-            case CMD_TEST1:
-                read_file(ed, ed->current_bufid, "for-testing/another_file.txt\0", 0);
-                break;
 
-            case CMD_TEST2:
-                read_file(ed, ed->current_bufid, "for-testing/test.txt\0", 0);
-                break;
-
-            case CMD_QDOT:
-                glfwSetWindowShouldClose(ed->win, GLFW_TRUE);
-                break;
-
-            case CMD_OPEN_NEW:
-                /*
-                if(argc < 2) {
-                    write_message(ed, ERROR_MSG, "Usage: open-new <filename>\0");
-                    goto done;
-                }
-                if(ed->num_buffers+1 >= MAX_BUFFERS) {
-                    write_message(ed, ERROR_MSG, "Oops, max buffers reached.\0");
-                    goto done;
-                }
-                read_file(ed, ed->num_buffers++, args[1], strlen(args[1]));
-                set_buffer_dimensions(ed);
-                */
-                break;
-
-            case CMD_OPEN:
-                if(argc < 2) {
-                    write_message(ed, ERROR_MSG, "Usage: open <filename>\0");
-                    goto done;
-                }
-                read_file(ed, ed->current_bufid, args[1], strlen(args[1]));
-                break;
-
-            case CMD_WRITE:
-                if(argc < 2) {
-                    write_file(ed, ed->current_bufid, NULL);
-                }
-                else if (argc == 2) {
-                    if(access(args[1], F_OK) != 0) {
-                        if(confirm_user_choice(ed, "Create new file?") == USER_ANSWER_NO) {
-                            goto done;
-                        }
+            case CMD_OPENF:
+                {
+                    if(argc != 2) {
+                        write_message(ed, ERROR_MSG, "openf <filepath>");
+                        goto done;
                     }
-                    write_file(ed, ed->current_bufid, args[1]);
+
+                    printf("%li\n", read_file(ed, buf->id, args[1], strlen(args[1])));
                 }
                 break;
 
+            case CMD_QUIT:
+                glfwSetWindowShouldClose(ed->win, 1);
+                break;
+
+            case CMD_LN:
+                {
+                    if(argc != 2) {
+                        write_message(ed, ERROR_MSG, "ln <line number to go>");
+                        goto done;
+                    }
+
+                    long int ln = atoi(args[1]);
+                    ln = liclamp(ln, 0, buf->num_used_lines-1);
+
+                    printf("%li\n", ln);
+
+                    move_cursor_to(buf, buf->cursor_x, ln);
+                }
+                break;
 
 
             default:
-                write_message(ed, ERROR_MSG, "Command '%s' not found.\n", args[0]);
+                write_message(ed, ERROR_MSG, "Command '%s'\n Not found.\n", args[0]);
                 break;
 
         }
@@ -121,6 +100,79 @@ done:
     string_clear_data(str);
     ed->cmd_cursor = 0;
 }
+
+
+void commandline_keypress(struct editor_t* ed, int key, int mods) {
+    
+    if(((mods & GLFW_MOD_CONTROL) && (key == GLFW_KEY_Q))
+    || (key == GLFW_KEY_ESCAPE)) {
+        ed->mode = MODE_NORMAL;
+        return;
+    }
+
+    if((mods & GLFW_MOD_CONTROL) && (key == GLFW_KEY_RIGHT)) {
+        ed->cmd_cursor = ed->cmdstr->data_size;
+        return;
+    }
+    if((mods & GLFW_MOD_CONTROL) && (key == GLFW_KEY_LEFT)) {
+        ed->cmd_cursor = 0;
+        return;
+    }
+    if((mods & GLFW_MOD_CONTROL) && (key == GLFW_KEY_L)) {
+        string_clear_data(ed->cmdstr);
+        ed->cmd_cursor = 0;
+        return;
+    }
+
+    switch(key) {
+    
+        case GLFW_KEY_LEFT:
+            if(ed->cmd_cursor > 0) {
+                ed->cmd_cursor--;
+            }
+            break;
+
+        case GLFW_KEY_RIGHT:
+            if(ed->cmd_cursor+1 <= ed->cmdstr->data_size) {
+                ed->cmd_cursor++;
+            }
+            break;
+
+
+        case GLFW_KEY_BACKSPACE:
+            if(ed->cmd_cursor > 0) {
+                if(string_rem_char(ed->cmdstr, ed->cmd_cursor)) {
+                    ed->cmd_cursor--;
+                }
+            }
+            break;
+
+        case GLFW_KEY_ENTER:
+            execute_cmd(ed, ed->cmdstr);
+            ed->mode = MODE_NORMAL;
+            break;
+    }
+
+
+}
+
+void commandline_charinput(struct editor_t* ed, unsigned char codepoint) {
+    if(!char_ok(codepoint)) {
+        return;
+    }
+
+
+    if(ed->cmdstr->data_size+1 < CMDSTR_MAX_SIZE) {
+        if(string_add_char(ed->cmdstr, codepoint, ed->cmd_cursor)) {
+            ed->cmd_cursor++;
+        }
+    }
+
+
+}
+
+
+
 
 
 

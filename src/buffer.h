@@ -119,7 +119,6 @@ void  buffer_scroll   (struct buffer_t* buf, int offset);
 #define PROCSELECTED_BEGIN 1  // flags
 #define PROCSELECTED_END 2    //
 void buffer_swap_selected(struct buffer_t* buf);
-int  buffer_remove_selected(struct buffer_t* buf);
 
 void buffer_proc_selected_reg(struct buffer_t* buf, void* userptr,
         int(*callback)
@@ -131,6 +130,7 @@ void buffer_proc_selected_reg(struct buffer_t* buf, void* userptr,
             void*   // user pointer
         ));
 
+int  buffer_remove_selected(struct buffer_t* buf);
 void buffer_copy_selected(struct editor_t* ed, struct buffer_t* buf);
 void buffer_paste_clipboard(struct editor_t* ed, struct buffer_t* buf);
 

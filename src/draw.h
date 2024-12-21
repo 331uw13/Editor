@@ -28,12 +28,6 @@ static const char DRW_FRAGMENT_SHADER_SRC[] = {
 struct editor_t;
 struct buffer_t;
 
-// 'need_mapping'?
-// maps coordinates from 0-'window size' to -1.0 - +1.0
-/*
-#define ALREADY_MAPPED 0
-#define MAP_XYWH 1
-*/
 
 // options for 'usegrid'
 #define DRW_NO_GRID (1<<0)
@@ -45,43 +39,36 @@ struct buffer_t;
 
 void draw_everything(struct editor_t* ed);
 
+
+void set_color(struct editor_t* ed, unsigned int hex);
+
 void draw_rect(
-        struct editor_t* ed, struct buffer_t* buf,
+        struct editor_t* ed,
         float x, float y,
         float w, float h, 
         int usegrid, 
-        float adj_x, float adj_y); // adjustment after calculating xywh to grid coordinates.
-                                   // DRW_NOADJAFTER should be used for more readability.
 
+        // for adjustment after calculating xywh to grid coordinates.
+        // DRW_NOADJAFTER should be used for more readability.
+        float adj_x, float adj_y
+        ); 
 
-/*
-void set_color(struct editor_t* ed, float r, float g, float b); // rgb 0.0 - 1.0
-void set_color_hex(struct editor_t* ed, unsigned int hex);
+void draw_char(
+        struct editor_t* ed,
+        int x, int y, unsigned char c);
 
-void draw_rect(struct editor_t* ed,
-        float x, float y,
-        float w, float h,
-        int need_mapping, int use_grid);
+void draw_data(struct editor_t* ed,
+        int x, int y,
+        char* data, long int size
+        );
 
-// NOTE: if 'size' is set to negative value 
-//       with font drawing functions  data is going to be rendered 
-//       until null character is found.
-void  draw_char(struct editor_t* ed, int x, int y, unsigned char c, int use_grid);
-void  draw_data(struct editor_t* ed, int x, int y, char* data, long int size, int use_grid);
-void  draw_data_syntax(struct editor_t* ed, int x, int y, char* data, long int size, int use_grid);
+// draw data line wrapped.
+void draw_data_wrp(struct editor_t* ed,
+        int x, int y,
+        char* data, long int size,
+        int max_col
+        );
 
-// uses line wrapping and \n character is not ignored
-// if use_grid is set to 1 max_x is treated as max column
-// returns the amount of newlines.
-size_t draw_data_w(struct editor_t* ed,
-            int x, int y,
-            char* data,
-            long int size,
-            int max_x,
-            int use_grid);
-
-void draw_buffers(struct editor_t* ed);
-*/
 
 
 

@@ -56,7 +56,8 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
 
 
         if(buf->file.opened) {
-            if(confirm_user_choice(ed, "The current buffer is not empty\ndata may be lost. continue?")
+            if(confirm_user_choice(ed, "aaa",
+                        PRESELECT_NO)
                     == USER_ANSWER_NO) {
                 goto error;
             }
@@ -203,7 +204,7 @@ size_t read_file(struct editor_t* ed, unsigned int buf_id, char* filename, size_
         }
 
 
-        write_message(ed, INFO_MSG, "bytes read: %l\0", total_bytes_read);
+        write_message(ed, INFO_MSG, "file '%s'\nread bytes %l\0", buf->file.name, total_bytes_read);
 
 error_and_close:
 

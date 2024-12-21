@@ -426,25 +426,22 @@ size_t string_find_char(struct string_t* str, size_t start_index, char c, int di
     return len;
 }
 
-int count_data_linewraps(char* data, size_t size, int max_line_size) {
-    int count = 0;
-    int x = 0;
+size_t count_data_linewraps(char* data, size_t size, int max_line_size) {
+    size_t count = 0;
+    size_t x = 0;
 
     if(!data) {
         goto error;
     }
 
     for(size_t i = 0; i < size; i++) {
-        if(data[i] == 0xA) {
-            count++;
-        }
         x++;
-
-        if(max_line_size > 0 && (x >= max_line_size)) {
+        if((x >= max_line_size) || (data[i] == 0x0A)) {
             count++;
             x = 0;
         }
     }
+
 error:
     return count;
 }

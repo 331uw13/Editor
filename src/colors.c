@@ -28,6 +28,10 @@ void init_colors(struct editor_t* ed) {
     ed->colors[BLOCKSLCT_CURSOR_COLOR] = 0x1da55e;
     ed->colors[BLOCKSLCT_CURSORCHAR_COLOR] = 0x222222;
 
+    ed->colors[CMDLBG_COLOR] = 0x261231;
+    ed->colors[CMDLFG_COLOR] = 0xcf35d5;
+    ed->colors[CMDLCURSOR_COLOR] = 0x52286b;
+    ed->colors[CMDLCURSORCHAR_COLOR] = 0x25c1d3;
     
 }
 

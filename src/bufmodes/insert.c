@@ -1,8 +1,8 @@
+#include "../editor.h"
+#include "../utils.h"
 
 #include "insert.h"
 #include "common.h"
-#include "../editor.h"
-#include "../utils.h"
 
 
 void bufmode_insert_keypress(
@@ -14,6 +14,13 @@ void bufmode_insert_keypress(
 { 
     bufmode_common_cursormov(ed, buf, key, mods);
 
+    if(mods) {
+        if(key == ed->keybinds[KB_PASTE_CLIPBOARD]) {
+            buffer_paste_clipboard(ed, buf);
+
+        }
+        return;
+    }
 
     switch(key) {
     

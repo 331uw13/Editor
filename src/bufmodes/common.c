@@ -71,34 +71,6 @@ void keypress_ctrlmod(struct editor_t* ed, struct buffer_t* buf, int key) {
             move_cursor_to(buf, 0, buf->cursor_y);
             break;
 
-
-        case GLFW_KEY_W:
-            write_file(ed, buf->id, NULL);
-            break;
-
-        case GLFW_KEY_P:
-            ed->mode = MODE_COMMAND_LINE;
-            break;
-
-        case GLFW_KEY_O:
-            clear_error_buffer(ed);
-            break;
-
-        case GLFW_KEY_E:
-            if(buffer_remove_line(buf, buf->cursor_y)) {
-                buf->cursor_x = 0;
-            }
-            break;
-
-        case GLFW_KEY_TAB:
-            if(ed->current_bufid+1 >= ed->num_buffers) {
-                ed->current_bufid = 0;
-            }
-            else {
-                ed->current_bufid++;
-            }
-            break;
-        
         case GLFW_KEY_RIGHT:
             move_cursor(buf, 4, 0);
             break;
@@ -113,15 +85,6 @@ void keypress_ctrlmod(struct editor_t* ed, struct buffer_t* buf, int key) {
         
         case GLFW_KEY_DOWN:
             move_cursor(buf, 0, 4);
-            break;
-
-            // sets the mode to none so the user can select new mode.
-        case GLFW_KEY_X: 
-            buffer_change_mode(ed, buf, BUFMODE_NONE);
-            break;
-
-        case GLFW_KEY_V:
-            buffer_paste_clipboard(ed, buf);
             break;
 
         default:break;

@@ -28,7 +28,7 @@ void set_color(struct editor_t* ed, unsigned int hex) {
 
 
 void draw_rect(
-        struct editor_t* ed, struct buffer_t* buf,
+        struct editor_t* ed,
         float x, float y,
         float w, float h, int usegrid, float adj_x, float adj_y) {
 
@@ -37,8 +37,6 @@ void draw_rect(
     }
 
     if((usegrid & DRW_ONGRID)) {
-        x += buf->x;
-        y += buf->y;
         to_grid_coords(ed, &x, &y, &w, &h);
 
         if((usegrid & DRW_ADJP)) {
@@ -81,7 +79,6 @@ void draw_rect(
 
 void draw_char(
         struct editor_t* ed,
-        struct buffer_t* buf,
         int x, int y, unsigned char c)
 {
     
@@ -95,8 +92,6 @@ void draw_char(
         return;
     }
 
-    x += buf->x;
-    y += buf->y;
     x = col_to_loc(ed, x);
     y = row_to_loc(ed, y);
 
@@ -142,7 +137,6 @@ void draw_char(
 
 static size_t _draw_data_r(
         struct editor_t* ed,
-        struct buffer_t* buf,
         int x,
         int y,
         char* data,
@@ -195,11 +189,11 @@ static size_t _draw_data_r(
                 break;
         }
 
-        draw_char(ed, buf, x, y, c);
+        draw_char(ed, x, y, c);
 
         x++;
 
-        if(use_wrapping && (x >= max_x)) {
+        if(use_wrapping && (x >= (xorigin + max_x))) {
             x = xorigin;
             y++;
             num_newlines++;
@@ -215,10 +209,18 @@ done:
 }
 
 void draw_data(struct editor_t* ed, 
-        struct buffer_t* buf, 
         int x, int y, char* data, long int size) {
-    _draw_data_r(ed, buf, x, y, data, size, 0, 0, 0);
+    _draw_data_r(ed, x, y, data, size, 0, 0, 0);
 }
+
+void draw_data_wrp(struct editor_t* ed,
+        int x, int y,
+        char* data, long int size,
+        int max_col
+        ) {
+    _draw_data_r(ed, x, y, data, size, 1, max_col, 0);
+}
+
 
 static void draw_buffer_data(struct editor_t* ed, struct buffer_t* buf) {
  
@@ -227,7 +229,7 @@ static void draw_buffer_data(struct editor_t* ed, struct buffer_t* buf) {
     }
 
     set_color(ed, ed->colors[BACKGROUND_COLOR]);
-    draw_rect(ed, buf, 0, 0,
+    draw_rect(ed, 0, 0,
             buf->max_col+1,
             buf->max_row+1, 
             DRW_ONGRID | DRW_ADJP, DRW_NOADJAFTER);
@@ -258,7 +260,7 @@ static void draw_buffer_data(struct editor_t* ed, struct buffer_t* buf) {
         // buffer data
 
         font_set_color_hex(&ed->font, ed->colors[FOREGROUND_COLOR]);
-        draw_data(ed, buf, xdrw_off, y, line->data, line->data_size);
+        draw_data(ed, xdrw_off, y, line->data, line->data_size);
 
         
         // buffer line numbers
@@ -267,7 +269,7 @@ static void draw_buffer_data(struct editor_t* ed, struct buffer_t* buf) {
                 (i == buf->cursor_y) 
                 ? ed->colors[LINENUM_COLOR_A] : ed->colors[LINENUM_COLOR_B]);
 
-        draw_data(ed, buf, ln_x, y, linenum_buf, LINENUM_BUF_SIZE);
+        draw_data(ed, ln_x, y, linenum_buf, LINENUM_BUF_SIZE);
     }
 }
 
@@ -281,7 +283,7 @@ static void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
     long int y = buf->cursor_y - buf->scroll;
 
     set_color(ed, buf->cursor_color);
-    draw_rect(ed, buf, x, y, 1, 1, 
+    draw_rect(ed, x, y, 1, 1, 
             DRW_ONGRID,
             -1.0, -1.32 /* adjustment */
             );
@@ -289,7 +291,7 @@ static void draw_cursor(struct editor_t* ed, struct buffer_t* buf) {
 
     if(buf->cursor_x < buf->current->data_size) {
         font_set_color_hex(&ed->font, buf->cursor_charcolor);
-        draw_char(ed, buf, x, y, 
+        draw_char(ed, x, y, 
                 string_get_char(buf->current, buf->cursor_x));
     } 
 
@@ -300,16 +302,16 @@ static void draw_buffer_nameinfo(struct editor_t* ed, struct buffer_t* buf) {
 
     // bottom bar
     set_color(ed, ed->colors[BAR_COLOR]);
-    draw_rect(ed, buf,
+    draw_rect(ed, 
             0, 
             buf->max_row,
-            buf->max_col,
+            buf->max_col+1,
             1,
             DRW_ONGRID | DRW_ADJP, DRW_NOADJAFTER);
    
     // filename
     font_set_color_hex(&ed->font, ed->colors[FILENAME_COLOR]);
-    draw_data(ed, buf,
+    draw_data(ed,
             4,
             buf->max_row,
             buf->file.name,
@@ -318,7 +320,7 @@ static void draw_buffer_nameinfo(struct editor_t* ed, struct buffer_t* buf) {
 
     // mode
     font_set_color_hex(&ed->font, BUFFER_MODE_INDICCOLORS[buf->mode]);
-    draw_data(ed, buf,
+    draw_data(ed,
             0,
             buf->max_row,
             buf->mode_indicstr, BUFFER_MODE_INDICSIZE);
@@ -326,7 +328,7 @@ static void draw_buffer_nameinfo(struct editor_t* ed, struct buffer_t* buf) {
 
     if(buf->file.readonly) {
         font_set_color_hex(&ed->font, ed->colors[READONLY_COLOR]);
-        draw_data(ed, buf,
+        draw_data(ed,
                 buf->file.name_size + 5,
                 buf->max_row,
                 "(Read Only)\0", -1);
@@ -371,7 +373,7 @@ static int draw_selected_callback(
 
     width = liclamp(width, 1, line->data_size);
 
-    draw_rect(ed, buf,
+    draw_rect(ed,
             x, y,
             width, 1,
             DRW_ONGRID, DRW_NOADJAFTER);
@@ -385,7 +387,7 @@ static int draw_selected_callback(
         if((flag & PROCSELECTED_BEGIN)) {
             offs = buf->select.x0;
         }
-        draw_data(ed, buf, x, y, line->data + offs, width);
+        draw_data(ed, x, y, line->data + offs, width);
     }
 
     res = 1;
@@ -414,7 +416,7 @@ static int draw_blockslct_callback(
 
     set_color(ed, 0x22FF22);
 
-    draw_rect(ed, buf, 
+    draw_rect(ed, 
             x, y,
             1, 1,
             DRW_ONGRID, DRW_NOADJAFTER);
@@ -439,9 +441,9 @@ static void draw_tabs(struct editor_t* ed) {
 
     int tabname_x = 2;
     int tabname_y = ed->max_row-2;
-    draw_rect(ed, &ed->buffers[ed->current_bufid],
+    draw_rect(ed,
             0, tabname_y,
-            ed->window_width, 1,
+            ed->max_column+1, 1,
             DRW_ONGRID | DRW_ADJP, DRW_NOADJAFTER);
 
 
@@ -454,7 +456,7 @@ static void draw_tabs(struct editor_t* ed) {
  
             if(currentbuf) {
                 font_set_color_hex(&ed->font, 0x68d44e);
-                draw_char(ed, buf, tabname_x, tabname_y, '*');
+                draw_char(ed, tabname_x, tabname_y, '*');
                 tabname_x += 1;
             }
 
@@ -465,7 +467,7 @@ static void draw_tabs(struct editor_t* ed) {
 
 
             font_set_color_hex(&ed->font, currentbuf ? 0x649459 : 0x4f7047);
-            draw_data(ed, buf, tabname_x, tabname_y,
+            draw_data(ed, tabname_x, tabname_y,
                     buf->file.name + offset, 
                     tabname_size);
             
@@ -473,10 +475,38 @@ static void draw_tabs(struct editor_t* ed) {
 
         }
         else {
-            
+            // TODO: empty name.
         }
     }
 }
+
+
+static void draw_commandline(struct editor_t* ed) {
+    
+    if(ed->mode != MODE_CMDL) {
+        return;
+    }
+
+    int y = ed->max_row - (ed->tabs_visible ? 3 : 2);
+    int x = 0;
+
+    set_color(ed, ed->colors[CMDLBG_COLOR]);
+    draw_rect(ed, x, y, ed->max_column+1, 1, DRW_ONGRID | DRW_ADJP, DRW_NOADJAFTER);
+
+    font_set_color_hex(&ed->font, ed->colors[CMDLFG_COLOR]);
+    draw_char(ed, x, y, '>');
+
+
+    draw_data(ed, x+2, y, ed->cmdstr->data, ed->cmdstr->data_size);
+
+    set_color(ed, ed->colors[CMDLCURSOR_COLOR]);
+    draw_rect(ed, x+2 + ed->cmd_cursor, y, 1, 1, DRW_ONGRID, 0.0, -1.0);
+
+    font_set_color_hex(&ed->font, ed->colors[CMDLCURSORCHAR_COLOR]);
+    draw_char(ed, x+2 + ed->cmd_cursor, y, string_get_char(ed->cmdstr, ed->cmd_cursor));
+
+}
+
  
 
 void draw_everything(struct editor_t* ed) {
@@ -490,12 +520,11 @@ void draw_everything(struct editor_t* ed) {
     if(buf->mode == BUFMODE_SELECT) {
         buffer_proc_selected_reg(buf, ed, draw_selected_callback);
     }
-    else if(buf->mode == BUFMODE_BLOCKSLCT) {
-        buffer_proc_selected_reg(buf, ed, draw_blockslct_callback);
-    }
  
     draw_tabs(ed);
-
+    draw_commandline(ed);
+    draw_info_buffer(ed);
+    draw_error_buffer(ed);
 }
 
 

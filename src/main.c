@@ -54,7 +54,7 @@ void run_loop(struct editor_t* ed) {
 int main(int argc, char** argv) {
     struct editor_t ed;
 
-    if(!init_editor(&ed, "Topaz-8.ttf", 1200, 750, INIT_FULLSCREEN)) {
+    if(!init_editor(&ed, "Topaz-8.ttf", 1200, 750)) {
         fprintf(stderr, "failed to initialize editor. return 1.\n");
         return 1;
     }

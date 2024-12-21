@@ -24,7 +24,7 @@
 #define EDITOR_TEXT_Y_SPACING 1.3 // how much space between lines?
                                   // ^ NOTE: do not set this to 0.
 #define EDITOR_TEXT_X_SPACING 1.0 // how much space between characters?
-#define COMMAND_LINE_MAX_SIZE 64
+#define CMDSTR_MAX_SIZE 64
 
 #define CLIPBOARD_INIT_SIZE 256
 
@@ -36,8 +36,8 @@
 
 // Modes
 // .. when MODE_NORMAL is used, the current buffer's mode is actually the one being used.
-#define MODE_NORMAL 0
-#define MODE_COMMAND_LINE 1
+#define MODE_NORMAL 0 
+#define MODE_CMDL 1 // command line
 #define MODE_CONFIRM_CHOICE 2
 
 #define LAYOUT_MAX_BUFFERS 4
@@ -50,9 +50,6 @@ struct editor_t {
     struct buffer_t buffers[MAX_BUFFERS];
     unsigned int current_bufid;
     unsigned int num_buffers;
-
-    struct buffer_t* layout[LAYOUT_MAX_BUFFERS];
-    unsigned int num_vi_buffers; // visible buffers.
 
     int mode;
 
@@ -74,16 +71,25 @@ struct editor_t {
     char    error_buf[ERROR_BUFFER_MAX_SIZE];
     size_t  error_buf_size; 
 
+    // line wraps happened on last draw
+    // used to offset info buffer below error buffer
+    // if they happen to be drawn at the same time.
+    size_t  error_buf_lw; 
+
     // messages that are displayed for user. example:'x bytes written.'
     char    info_buf[INFO_BUFFER_MAX_SIZE];
     size_t  info_buf_size;
 
-
-    struct string_t* cmd_str;    // for command line.
+    struct string_t* cmdstr;    // for command line.
     long int         cmd_cursor; //
 
     struct string_t* clipbrd;
     unsigned int colors[NUM_COLORS];
+
+    unsigned int keybinds[NUM_KEYBINDS]; // see config.c/h
+    int cfg[NUM_CONFIG_VARS];
+
+    // TODO: "extra rows reserved" because other things to offset data drawing and max cursor row
 
     int glfwinitsuccess;
     int ready;
@@ -99,16 +105,16 @@ long int loc_to_row(struct editor_t* ed, float row);
 
 #define USER_ANSWER_YES 1
 #define USER_ANSWER_NO  0
+#define PRESELECT_NO 1
+#define PRESELECT_YES 0
 // NOTE: 'question' must be null character terminated.
 //       if error happens returns 0
-int confirm_user_choice(struct editor_t* ed, char* question);
+int confirm_user_choice(struct editor_t* ed, char* question, int pre_select);
 
 
 // BUFFER CONTROL ----- 
 
 int editor_add_buffer(struct editor_t* ed);
-void set_buffer_layout(struct editor_t* ed, 
-        struct buffer_t* buf, int lcol, int lrow);
 
 // --------
 
@@ -132,8 +138,8 @@ void showtabs(struct editor_t* ed, int visible);
 int init_editor(
         struct editor_t* ed,
         const char* fontfile,
-        int window_width, int window_height,
-        int fullscreen);
+        int window_width, int window_height
+        );
 
 void cleanup_editor(struct editor_t* e);
 

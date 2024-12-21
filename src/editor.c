@@ -13,6 +13,7 @@
 #include "shader.h"
 #include "draw.h"
 #include "memory.h"
+#include "config.h"
 
 
 void _framebuffer_size_callback(GLFWwindow* win, int width, int height) {
@@ -102,9 +103,8 @@ long int loc_to_row(struct editor_t* ed, float row) {
     return r;
 }
 
-int confirm_user_choice(struct editor_t* ed, char* question) {
-    int res = 0;
-    //int wait_for_answer = 1;
+int confirm_user_choice(struct editor_t* ed, char* question, int pre_select) {
+    int result = 0;
 
     if(!question) {
         goto error;
@@ -116,109 +116,82 @@ int confirm_user_choice(struct editor_t* ed, char* question) {
         goto error;
     }
 
+    int q_maxcol = ed->cfg[CFG_QUESTION_MAXCOL];
+    int rows = 1+count_data_linewraps(question, q_len, q_maxcol);
+    int wait_for_answer = 1;
 
-    const int max_column = q_len + 4;
-    const float w = max_column * CELLW;
-    
-    int num_lines = count_data_linewraps(question, q_len, max_column);
-    const float h = CELLH * (num_lines + 4);
-
-    if(h * w <= 0) {
-        fprintf(stderr, "question box is too small.\n");
-        goto error;
-    }
-
-
-        /*
-    const float x = ed->window_width / 2 - (w / 2);
-    const float y = ed->window_height / 2 - (h / 2);
-    int old_mode = ed->mode;
     ed->mode = MODE_CONFIRM_CHOICE;
+
+    double p_nowtime = glfwGetTime();
+    double time = 0.0;
 
     while(wait_for_answer && !glfwWindowShouldClose(ed->win)) {
         glClear(GL_COLOR_BUFFER_BIT);
+
+        if(glfwGetKey(ed->win, GLFW_KEY_Y)) {
+            result = USER_ANSWER_YES;
+            break;
+        }
+        else if(glfwGetKey(ed->win, GLFW_KEY_N)) {
+            result = USER_ANSWER_NO;
+            break;
+        }
+        else if(glfwGetKey(ed->win, GLFW_KEY_LEFT)) {
+            pre_select = PRESELECT_YES;
+        }
+        else if(glfwGetKey(ed->win, GLFW_KEY_RIGHT)) {
+            pre_select = PRESELECT_NO;
+        }
+        else if(glfwGetKey(ed->win, GLFW_KEY_ENTER)) {
+            if(time > 0.1) { 
+                // need to add time delay here 
+                // otherwise it can go through after executing a command.
+                result = !pre_select;
+                break;
+            }
+        }
+
+
         draw_everything(ed);
-
-        set_color_hex(ed, 0x242010);
-        draw_rect(ed,
-                x, y, w, h,
-                MAP_XYWH, DRW_NO_GRID);
-
-                */
-
-        /*
-        font_set_color_hex(&ed->font, 0x8E8E4F);
-        int num_nl = draw_data_w(ed, 
-                x + CELLW,
-                y + CELLH,
-                question,
-                q_len,
-                x + w,
-                DRW_NO_GRID
-                );
-
-        draw_data(ed,
-                x + CELLW,
-                y + (CELLH * (num_nl + 2)),
-                "Y(es) / N(o)\0", -1,
-                DRW_NO_GRID);
-
-        if(glfwGetKey(ed->win, GLFW_KEY_Y) == GLFW_PRESS) {
-            res = USER_ANSWER_YES;
-            wait_for_answer = 0;
-        }
-        else if(glfwGetKey(ed->win, GLFW_KEY_N) == GLFW_PRESS) {
-            res = USER_ANSWER_NO;
-            wait_for_answer = 0;
-        }
-
-
-        glfwSwapBuffers(ed->win);
-        glfwWaitEvents();
-    }
-
-    ed->mode = old_mode;
-
-                */
-error:
-    return res;
-}
-
-/*
-void _buffer_layout(struct editor_t* ed) {
     
-    struct buffer_t* buf = NULL;
-    int num_bufs = iclamp(ed->num_buffers, 0, MAX_BUFFERS);
+        int x = ed->max_column / 2 - (q_maxcol / 2);
+        int y = ed->max_row / 2 - (rows / 2);
 
-    if(num_bufs == 0) {
-        fprintf(stderr, "number of active buffers is zero.\n");
-        return;
+        set_color(ed, 0x2a241b);
+        draw_rect(ed, x-1, y-1, q_maxcol+2, rows+3, DRW_ONGRID, 0.0, 2.5);
+
+
+        font_set_color_hex(&ed->font, 0xd08d2a);
+        draw_data_wrp(ed, x, y, question, q_len, q_maxcol);
+
+        draw_char(ed, x-1, y-1, '"');
+
+        font_set_color_hex(&ed->font, 0x946a2b);
+        draw_data(ed, x, y+rows+1, "(y)es / (n)o\0", -1);
+
+
+        set_color(ed, 0xd08d2a);
+        draw_rect(ed, 
+                (x + pre_select * 8) * CELLW+10,
+                (y+rows+2) * CELLH + 3,
+
+                CELLW*4, 1, DRW_NO_GRID, DRW_NOADJAFTER);
+
+
+        
+        glfwSwapBuffers(ed->win);
+        glfwPollEvents();
+
+        const double nowtime = glfwGetTime();
+        time += (nowtime - p_nowtime);
+        p_nowtime = nowtime;
     }
 
-    const int cw = CELLW;
-    const int ch = CELLH;
+    ed->mode = MODE_NORMAL;
 
-    int max_width = ed->window_width / num_bufs;
-    int max_height = ed->window_height - ch;
-
-    for(int i = 0; i < num_bufs; i++) {
-        buf = &ed->buffers[i];
-        if(!buf) {
-            continue;
-        }
-
-        buf->x = i * (max_width);
-        buf->y = 0;
-        buf->width = max_width;
-        buf->height = max_height;
-
-
-        buf->max_col = buf->width / cw;
-        buf->max_row = buf->height / ch;
-
-    }
+error:
+    return result;
 }
-*/
 
 
 int editor_add_buffer(struct editor_t* ed) {
@@ -256,92 +229,8 @@ int editor_add_buffer(struct editor_t* ed) {
 error:
     return res;
 }
-/*
-static void buffer_layout_R(struct editor_t* ed, struct buffer_t* buf, int x, int y, int w, int h) {
-    buf->x = x;
-    buf->y = y;
-    buf->width = w;
-    buf->height = h;
-    buf->max_col = buf->width / CELLW;
-    buf->max_row = buf->height / CELLH;
-}
-
-void editor_dump_buffer_layout(struct editor_t* ed) {
-    printf("---- Editor Buffer Layout ---\n");
-
-    for(int i = 0; i < LAYOUT_MAX_BUFFERS; i++) {
-        struct buffer_t* lb = ed->layout[i];
-        if(lb) {
-            printf(" \033[32m%i\033[0m: \033[34mID: %i\033[0m, X: %i, Y: %i,"
-                    " W: %i, H: %i, MAXCOL: %i, MAXROW: %i\n",
-                    i, lb->id, lb->x, lb->y, lb->width, lb->height,
-                    lb->max_col, lb->max_row);
-        }
-        else {
-            printf(" \033[90m%i: <NULL>\033[0m\n", i);
-        }
-    }
-
-    printf("-----------------------------\n");
-}
-
-void set_buffer_layout(struct editor_t* ed, struct buffer_t* buf, int lcol, int lrow) {
-   
-    if(!buffer_ready(buf)) {
-        return;
-    }
-
-
-    const int cw = CELLW;
-    const int ch = CELLH;
-
-    int max_h = ed->window_height - ch;
-    int max_w = ed->window_width;
-
-
-    int lwidth = ed->window_width;
-    int lheight = ed->window_height;
-    int lx = 0;
-    int ly = 0;
-
-    int layout_index = (lrow * 2 + lcol);
-    struct buffer_t* lb = ed->layout[layout_index];
-
-    if(lrow == 0) {
-        if(lb) {
-            if(lb->id == buf->id)  {
-                fprintf(stderr, "[WARNING] %s | nothing to do the id's match.\n",
-                        __func__);
-                return;
-            }
-
-            // different buffer already exists at 'layout_index' move it to 'next_index'.
-            // horizontal.
-            
-            int next_index = (layout_index+1)%2;
-            printf("buffer %p(%i) at %i, move existing to %i\n",
-                    lb, lb->id, layout_index, next_index);
-
-            ed->layout[next_index] = lb;
-            ed->layout[layout_index] = buf;
-
-            lwidth /= 2;
-
-            buffer_layout_R(ed, lb, lwidth, ly, lwidth, lheight);
-        }
-        else {
-            ed->layout[layout_index] = buf;
-        }
-       
-        buffer_layout_R(ed, buf, lx, ly, lwidth, lheight);
-    }
-
-}
-*/
-
 
 void map_xywh(struct editor_t* ed, float* x, float* y, float* w, float* h) {
-    // uhh.
     if(x) {
         *x = map(*x, 0.0, ed->window_width, -1.0, 1.0);
     }
@@ -495,71 +384,67 @@ void clear_info_buffer(struct editor_t* ed) {
 }
 
 void draw_error_buffer(struct editor_t* ed) {
-
-    /*
     if(ed->error_buf_size == 0) {
         return;
     }
 
-    const int chars_shown = 32;
-    const int bx = ed->max_column - chars_shown - 2;
-    const int by = 1;
+    const int errbuf_maxcol = ed->cfg[CFG_ERRORBUF_MAXCOL];
+    const size_t rows = 1+count_data_linewraps(
+            ed->error_buf, ed->error_buf_size, errbuf_maxcol
+            );
 
-    set_color_hex(ed, 0x201310);
-
-
-    int lines_shown = count_data_linewraps(
-            ed->error_buf, ed->error_buf_size, chars_shown) + 2;
+    int x = ed->max_column - errbuf_maxcol;
+    int y = 0;
 
 
-    draw_rect(ed, 
-            bx, by,
-            chars_shown, lines_shown,
-            MAP_XYWH, DRW_ONGRID);
+    set_color(ed, 0x241917);
+    draw_rect(ed, x-2, y, errbuf_maxcol+2, rows, DRW_ONGRID, DRW_NOADJAFTER);
 
-    font_set_color_hex(&ed->font, 0x651800);
-    draw_data(ed, bx+1, by, "-- ERROR --\0", -1, DRW_ONGRID);
+    draw_rect(ed, x-9, y, 7, 1, DRW_ONGRID, DRW_NOADJAFTER);
+    font_set_color_hex(&ed->font,0xe74c37);
+    draw_data(ed, x-9, y, "(error)", 7);
     
-    font_set_color_hex(&ed->font, 0x403030);
-    draw_data(ed, bx+13, by, "ctrl+o to close\0", -1, DRW_ONGRID);
+    font_set_color_hex(&ed->font, 0xc66352);
+    draw_data_wrp(ed, x-1, y, ed->error_buf, ed->error_buf_size, errbuf_maxcol);
 
-    font_set_color_hex(&ed->font, 0xA75030);
-    draw_data_w(ed, 
-            bx, by+1,
-            ed->error_buf, ed->error_buf_size,
-            bx + chars_shown,
-            DRW_ONGRID);
-            */
+    ed->error_buf_lw = rows;
 }
 
 void draw_info_buffer(struct editor_t* ed) {
-    /*
     if(ed->info_buf_size == 0) {
         return;
     }
 
-    const float x = 0;
-    const float y = ed->window_height - ed->font.char_h-2;
-    const float w = ed->window_width;
-    const float h = ed->font.char_h;
 
-    set_color_hex(ed, 0x051212);
-    draw_rect(ed,
-            x, y,
-            w, h,
-            MAP_XYWH, DRW_NO_GRID);
+    const int infobuf_maxcol = ed->cfg[CFG_INFOBUF_MAXCOL];
+    const size_t rows = 1+count_data_linewraps(
+            ed->info_buf, ed->info_buf_size, infobuf_maxcol
+            );
 
 
-    font_set_color_hex(&ed->font, 0x104050);
-    draw_char(ed, x+10, y, '>', DRW_NO_GRID);
-    
-    font_set_color_hex(&ed->font, 0x109090);
-    draw_data(ed, x+ed->font.char_w+20, y, ed->info_buf, ed->info_buf_size, DRW_NO_GRID);
-    */
+    int x = ed->max_column - infobuf_maxcol;
+    int y = 0;
+    if(ed->error_buf_size > 0) {
+        y += ed->error_buf_lw;
+    }
+
+    set_color(ed, 0x222242);
+
+    draw_rect(ed, x-4, y, 2, 1, DRW_ONGRID, DRW_NOADJAFTER);
+    font_set_color_hex(&ed->font, 0x008080);
+    draw_data(ed, x-4, y, "->", 2);
+
+    draw_rect(ed, x-2, y, infobuf_maxcol+2, rows, DRW_ONGRID, DRW_NOADJAFTER);
+
+    font_set_color_hex(&ed->font, 0x00D2D2);
+    draw_data_wrp(ed, x-1, y, 
+            ed->info_buf, ed->info_buf_size, infobuf_maxcol);
+
 }
 
+
 int init_editor(struct editor_t* ed, const char* fontfile, 
-        int window_width, int window_height, int fullscreen) {
+        int window_width, int window_height) {
 
     int result = 0;
 
@@ -567,17 +452,6 @@ int init_editor(struct editor_t* ed, const char* fontfile,
         fprintf(stderr, "the font file cant be NULL.\n");
         goto giveup;
     }
-
-    
-    /*
-    struct editor_t* ed = NULL;
-    ed = malloc(sizeof *ed);
-
-    if(!ed) {
-        fprintf(stderr, "failed to allocate memory for editor!\n");
-        goto giveup;
-    }
-    */
 
     ed->ready = 0;
     ed->win = NULL;
@@ -596,12 +470,8 @@ int init_editor(struct editor_t* ed, const char* fontfile,
     ed->glfwinitsuccess = 0;
     ed->error_buf_size = 0;
     ed->info_buf_size = 0;
-    ed->num_vi_buffers = 0;
     ed->tabs_visible = 0;
-
-    for(unsigned int i = 0; i < LAYOUT_MAX_BUFFERS; i++) {
-        ed->layout[i] = NULL;
-    }
+    ed->error_buf_lw = 0;
 
     for(unsigned int i = 0; i < MAX_BUFFERS; i++) {
         struct buffer_t* buf = &ed->buffers[i];
@@ -616,6 +486,13 @@ int init_editor(struct editor_t* ed, const char* fontfile,
         buf->lines = NULL;
     }
 
+    for(int i = 0; i < NUM_CONFIG_VARS; i++) {
+        ed->cfg[i] = 0;
+    }
+
+    for(int i = 0; i < NUM_KEYBINDS; i++) {
+        ed->keybinds[i] = 0;
+    }
 
     init_colors(ed);
     //init_mem_static_vars();
@@ -630,11 +507,13 @@ int init_editor(struct editor_t* ed, const char* fontfile,
 
     printf("+ initialized glfw.\n");
 
+    /*
     glfwWindowHint(GLFW_SCALE_TO_MONITOR, fullscreen);
     glfwWindowHint(GLFW_FLOATING, !fullscreen);
     glfwWindowHint(GLFW_RESIZABLE, fullscreen);
     glfwWindowHint(GLFW_DECORATED, 1);
-    
+    */
+
     ed->win = glfwCreateWindow(window_width, window_height, "Editor", NULL, NULL);
     if(!ed->win) {
         fprintf(stderr, "failed to create window.\n");
@@ -710,9 +589,10 @@ int init_editor(struct editor_t* ed, const char* fontfile,
     memset(ed->error_buf, 0, ERROR_BUFFER_MAX_SIZE);
     memset(ed->info_buf, 0, INFO_BUFFER_MAX_SIZE);
 
-    ed->cmd_str = create_string(COMMAND_LINE_MAX_SIZE);
+    ed->cmdstr = create_string(CMDSTR_MAX_SIZE);
     ed->clipbrd = create_string(CLIPBOARD_INIT_SIZE);
 
+    config_setup(ed);
 
     //  -- ready.
 
@@ -733,6 +613,9 @@ void cleanup_editor(struct editor_t* e) {
     for(int i = 0; i < e->num_buffers; i++) {
         delete_buffer(&e->buffers[i]);
     }
+
+    delete_string(&e->cmdstr);
+    delete_string(&e->clipbrd);
 
     if(e->glfwinitsuccess) {
         if(e->win) {

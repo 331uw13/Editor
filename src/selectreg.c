@@ -62,9 +62,6 @@ int remove_selected_reg_callback
     const int isbegin = (flag & PROCSELECTED_BEGIN);
     const int isend   = (flag & PROCSELECTED_END);
 
-    // at buffer.c 'buffer_remove_selected' handles the rest.
-    //              -----------------------------------------
-    
     if(isbegin && isend) {
         
         long int len = buf->select.x1 - buf->select.x0;

@@ -3,16 +3,17 @@
 //#include <math.h>
 
 #include "editor.h"
-//#include "command_line.h"
 //#include "file.h"
 //#include "utils.h"
 //#include "selectreg.h"
 //#include "config.h"
 
 
-
+#include "bufmodes/nonemode.h"
 #include "bufmodes/insert.h"
-
+#include "bufmodes/replace.h"
+#include "bufmodes/select.h"
+#include "command_line.h"
 
 /*   
 --->
@@ -34,6 +35,17 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
                 __func__);
         return;
     }
+    
+    clear_info_buffer(ed);
+    
+    if(ed->mode == MODE_CMDL) {
+        commandline_charinput(ed, codepoint);
+        return;
+    }
+
+    if(ed->mode != MODE_NORMAL) {
+        return;
+    }
 
     struct buffer_t* buf = &ed->buffers[ed->current_bufid];
     if(!buffer_ready(buf)) {
@@ -42,8 +54,21 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
     }
 
     switch(buf->mode) {
+
+        case BUFMODE_NONE:
+            bufmode_nonemode_charinput(ed, buf, codepoint);
+            break;
+
         case BUFMODE_INSERT:
             bufmode_insert_charinput(ed, buf, codepoint);
+            break;
+
+        case BUFMODE_REPLACE:
+            bufmode_replace_charinput(ed, buf, codepoint);
+            break;
+    
+        case BUFMODE_SELECT:
+            bufmode_select_charinput(ed, buf, codepoint);
             break;
     }
 
@@ -52,22 +77,50 @@ void char_input_handler(GLFWwindow* win, unsigned int codepoint) {
 
 
 void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int mods) {
-    
     if(action == GLFW_RELEASE) {
         return;
     }
 
     struct editor_t* ed = NULL;
     ed = glfwGetWindowUserPointer(win);
-
     if(!ed) {
         fprintf(stderr, "[ERROR] %s | pointer is missing.\n",
                 __func__);
         return;
     }
 
+    struct buffer_t* buf = &ed->buffers[ed->current_bufid];
+    if(!buffer_ready(buf)) {
+        // error message is printed from the function above.
+        return;
+    }
+
+
+    if(ed->mode == MODE_CMDL) {
+        commandline_keypress(ed, key, mods);
+        return;
+    }
+
+    if(ed->mode != MODE_NORMAL) {
+        return;
+    }
+    
+    // FOR TESTING:
+    if((mods & GLFW_MOD_CONTROL) && (key == GLFW_KEY_M)) {
+        printf("%i\n", confirm_user_choice(ed, "Data may be lost. Continue?\0", PRESELECT_NO));
+    }
+
+    if((mods & GLFW_MOD_CONTROL) && (key == ed->keybinds[KB_CMDL])) {
+        ed->mode = MODE_CMDL;
+        return;
+    }
+
     if(mods == GLFW_MOD_ALT) {
         switch(key) {
+
+            case GLFW_KEY_O:
+                clear_error_buffer(ed);
+                break;
 
             case GLFW_KEY_TAB:
                 ed->tabs_visible = !ed->tabs_visible;
@@ -85,21 +138,28 @@ void key_input_handler(GLFWwindow* win, int key, int scancode, int action, int m
                     ed->current_bufid++;
                 }
                 break;
-
         }
-
         return;
     }
 
-    struct buffer_t* buf = &ed->buffers[ed->current_bufid];
-    if(!buffer_ready(buf)) {
-        // error message is printed from the function above.
+    if((mods == GLFW_MOD_CONTROL) 
+            && (key == ed->keybinds[KB_NONEMODE])) {
+        buffer_change_mode(ed, buf, BUFMODE_NONE);
         return;
     }
 
     switch(buf->mode) {
+
         case BUFMODE_INSERT:
             bufmode_insert_keypress(ed, buf, key, mods);
+            break;
+
+        case BUFMODE_REPLACE:
+            bufmode_replace_keypress(ed, buf, key, mods);
+            break;
+
+        case BUFMODE_SELECT:
+            bufmode_select_keypress(ed, buf, key, mods);
             break;
     }
 

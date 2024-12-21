@@ -474,8 +474,6 @@ void buffer_copy_selected(struct editor_t* ed, struct buffer_t* buf) {
 void buffer_paste_clipboard(struct editor_t* ed, struct buffer_t* buf) {
     if(buffer_ready(buf) && ed->clipbrd->data_size > 0) {
         
-        printf("-- paste\n'\033[90m\n%s\033[0m'\n", ed->clipbrd->data);
-
         struct string_t* target = buf->current;
         long int x = buf->cursor_x;
         long int y = buf->cursor_y;
@@ -507,7 +505,6 @@ void buffer_paste_clipboard(struct editor_t* ed, struct buffer_t* buf) {
             }
 
             x++;
-
         }
     }
 }
