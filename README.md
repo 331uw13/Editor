@@ -13,9 +13,6 @@ cd Editor
 ./gccbuild.sh r
 ```
 
-> [!CAUTION]
-> Current status: not functioning.
-
 ![Editor](https://github.com/331uw13/Editor/blob/main/screenshots/2024-12-09_15-10-Editor.png?raw=true)
 
 ## Keybinds
